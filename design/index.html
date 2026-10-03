@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#f8f7f3" />
+    <title>Тише — дневник сна малыша · дизайн</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="prototype.js" defer></script>
+  </head>
+  <body>
+    <aside class="studio" aria-label="Настройки прототипа">
+      <a class="studio-mark" href="#day">ТИШЕ <span>DESIGN STUDY / 01</span></a>
+      <h1>Маленькие сны.<br />Большое спокойствие.</h1>
+      <p>
+        Дневник, который помогает замечать ритм вашего малыша. Один день, один
+        понятный следующий шаг.
+      </p>
+      <div class="studio-line"></div>
+      <span class="eyebrow">МОБИЛЬНЫЙ ПРОТОТИП</span>
+      <div class="studio-links">
+        <button data-route="day">01 <span>Сегодня</span> ↗</button>
+        <button data-route="schedules">02 <span>Мои графики</span> ↗</button>
+        <button data-route="history">03 <span>История дней</span> ↗</button>
+        <button data-route="profile">04 <span>Профиль</span> ↗</button>
+        <button data-route="admin">05 <span>Администратор</span> ↗</button>
+        <button data-route="login">06 <span>Вход и регистрация</span> ↗</button>
+      </div>
+      <p class="studio-foot">
+        390 × 844 · адаптивно от 320 px<br />Демонстрационные данные · 3
+        октября, 14:20
+      </p>
+    </aside>
+    <div class="device">
+      <div class="prototype-label">
+        ИНТЕРАКТИВНЫЙ МАКЕТ <span>изменения до перезагрузки</span>
+      </div>
+      <header class="app-header">
+        <a class="brand" href="#day" aria-label="Тише — главная"
+          ><span class="brand-symbol">◔</span> тише<span class="brand-dot"
+            >.</span
+          ></a
+        >
+        <button
+          class="avatar"
+          data-route="profile"
+          aria-label="Открыть профиль"
+        >
+          А
+        </button>
+      </header>
+      <main id="screen"></main>
+      <nav
+        id="navigation"
+        class="bottom-nav"
+        aria-label="Основная навигация"
+      ></nav>
+    </div>
+    <dialog id="sheet" aria-labelledby="sheet-title">
+      <div id="sheet-content"></div>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
