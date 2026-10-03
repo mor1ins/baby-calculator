@@ -1,0 +1,78 @@
+[project]
+name = "baby-calculator-backend"
+version = "0.1.0"
+requires-python = ">=3.10,<3.14"
+dependencies = ["dependency-injector==4.49.1", "mediapyr==0.1.6"]
+
+[dependency-groups]
+dev = ["isort>=5.13,<7", "flake8>=7,<8", "mypy>=1.15,<2", "pylint>=3.3,<4", "pytest>=8,<9", "pytest-asyncio>=0.25,<1", "import-linter>=2,<3"]
+
+[tool.uv]
+package = false
+
+[tool.isort]
+line_length = 120
+known_first_party = ["service"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["mediapyr.*"]
+ignore_missing_imports = true
+
+[tool.pylint.main]
+extension-pkg-allow-list = ["dependency_injector"]
+persistent = false
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint.messages_control]
+disable = ["missing-module-docstring", "missing-class-docstring", "missing-function-docstring", "too-few-public-methods"]
+
+[tool.pylint.similarities]
+min-similarity-lines = 4
+ignore-imports = true
+ignore-comments = true
+ignore-docstrings = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.importlinter]
+root_package = "service"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Business layers are mutually independent"
+type = "independence"
+modules = ["service.api", "service.application", "service.domain", "service.infrastructure"]
+
+[[tool.importlinter.contracts]]
+name = "Only composition owns wiring and concrete messaging"
+type = "forbidden"
+source_modules = ["service.api", "service.application", "service.domain", "service.infrastructure", "service.contracts"]
+forbidden_modules = ["service.container", "service.messaging", "dependency_injector"]
+
+[[tool.importlinter.contracts]]
+name = "Contracts do not depend on implementations"
+type = "forbidden"
+source_modules = ["service.contracts"]
+forbidden_modules = ["service.api", "service.application", "service.domain", "service.infrastructure"]
+
+[[tool.importlinter.contracts]]
+name = "Frameworks stay at boundaries"
+type = "forbidden"
+source_modules = ["service.application", "service.domain", "service.contracts"]
+forbidden_modules = ["fastapi", "sqlalchemy", "psycopg"]
+
+[[tool.importlinter.contracts]]
+name = "Mediator is accessible only through messaging"
+type = "forbidden"
+source_modules = ["service.api", "service.application", "service.domain", "service.infrastructure"]
+forbidden_modules = ["mediapyr"]
