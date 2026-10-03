@@ -13,11 +13,20 @@
         "format:check": "prettier --check .",
         "lint:architecture": "depcruise src --config .dependency-cruiser.cjs --output-type err-long",
         "lint:duplicates": "jscpd src tests --config .jscpd.json",
-        "test": "node --test tests/architecture/*.test.js",
-        "check": "npm run lint && npm run lint:styles && npm run format:check && npm run lint:architecture && npm run lint:duplicates && npm test"
+        "test": "npm run test:architecture && npm run test:runtime",
+        "check": "npm run lint && npm run lint:styles && npm run format:check && npm run lint:architecture && npm run lint:duplicates && npm test && npm run build",
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview --host 127.0.0.1",
+        "test:architecture": "node --test tests/architecture/*.test.js",
+        "test:runtime": "vitest run"
     },
     "devDependencies": {
         "@eslint/js": "^9.39.5",
+        "@testing-library/jest-dom": "^7.0.1",
+        "@testing-library/react": "^16.3.3",
+        "@testing-library/user-event": "^14.6.7",
+        "@vitejs/plugin-react": "^6.1.1",
         "dependency-cruiser": "^17.4.3",
         "eslint": "^9.39.5",
         "eslint-config-prettier": "^10.1.8",
@@ -27,8 +36,20 @@
         "eslint-plugin-simple-import-sort": "^12.1.1",
         "globals": "^16.5.0",
         "jscpd": "^5.4.0",
+        "jsdom": "^29.1.1",
         "prettier": "^3.9.9",
         "stylelint": "^17.16.0",
-        "stylelint-config-standard": "^40.0.0"
+        "stylelint-config-standard": "^40.0.0",
+        "vite": "^8.3.2",
+        "vitest": "^5.0.3"
+    },
+    "dependencies": {
+        "@js-temporal/polyfill": "^0.5.1",
+        "@tanstack/react-query": "^5.104.1",
+        "prop-types": "^15.8.1",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+        "react-hook-form": "^7.89.0",
+        "react-router-dom": "^7.18.4"
     }
 }

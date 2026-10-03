@@ -31,7 +31,7 @@ export default [
         },
     },
     {
-        files: ['*.{js,cjs,mjs}', 'tests/**/*.js'],
+        files: ['*.{js,cjs,mjs}', 'tests/**/*.{js,jsx}'],
         languageOptions: { globals: globals.node },
     },
     {

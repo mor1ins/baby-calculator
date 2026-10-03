@@ -1,0 +1,105 @@
+import PropTypes from 'prop-types';
+
+import { ActionButton, confirmedVersion, Form } from './Forms.jsx';
+import { absoluteTime, inputTime } from './time.js';
+import { useWrite } from './useApi.js';
+
+export function SleepForm({ sleep, day, close }) {
+    const mutation = useWrite();
+    const zone = day.timezone;
+    const fields = [
+        { name: 'day', label: 'День цикла', type: 'date', required: true },
+        {
+            name: 'kind',
+            label: 'Вид сна',
+            options: [
+                ['nap', 'Дневной'],
+                ['night', 'Ночной'],
+            ],
+        },
+        { name: 'start', label: 'Начало сна', type: 'datetime-local', required: true },
+        { name: 'end', label: 'Конец сна (пусто — ещё спит)', type: 'datetime-local' },
+        {
+            name: 'ends_night',
+            label: 'Окончательное утреннее пробуждение',
+            options: [
+                ['no', 'Нет'],
+                ['yes', 'Да'],
+            ],
+        },
+    ];
+    const initial = sleepInputs(sleep, day);
+    const current = currentSleep(day, sleep);
+    const submit = async (values) => {
+        const changed = sleep
+            ? Object.fromEntries(Object.entries(values).filter(([key, value]) => value !== initial[key]))
+            : values;
+        if (Object.keys(changed).length) {
+            await mutation.mutateAsync({
+                action: sleep ? 'updateSleep' : 'createSleep',
+                key: sleep?.id,
+                version: confirmedVersion(sleep?.version, current?.version),
+                values: sleepPayload(changed, zone),
+            });
+        }
+        close();
+    };
+    return (
+        <section className="card">
+            <h2>{sleep ? 'Исправить сон' : 'Записать сон'}</h2>
+            <p>Время: {zone}. Бодрствование рассчитается автоматически.</p>
+            <Form fields={fields} initial={initial} submit={submit} />
+            <div className="actions">
+                <button type="button" className="secondary" onClick={close}>
+                    Отмена
+                </button>
+                {sleep && (
+                    <ActionButton
+                        confirm="Удалить запись сна? Заметки сохранятся для перепривязки."
+                        action={async () => {
+                            await mutation.mutateAsync({
+                                action: 'deleteSleep',
+                                key: sleep.id,
+                                version: sleep.version,
+                            });
+                            close();
+                        }}
+                    >
+                        Удалить сон
+                    </ActionButton>
+                )}
+            </div>
+        </section>
+    );
+}
+SleepForm.propTypes = { sleep: PropTypes.object, day: PropTypes.object.isRequired, close: PropTypes.func.isRequired };
+
+function sleepInputs(sleep, day) {
+    const value = sleep || {
+        day: day.date,
+        kind: 'nap',
+        start: new Date().toISOString(),
+        end: null,
+        ends_night: false,
+    };
+    return {
+        day: value.day,
+        kind: value.kind,
+        start: inputTime(value.start, day.timezone),
+        end: value.end ? inputTime(value.end, day.timezone) : '',
+        ends_night: value.ends_night ? 'yes' : 'no',
+    };
+}
+
+function currentSleep(day, sleep) {
+    if (!sleep) return null;
+    return [...day.sleeps, day.previous_night].find((item) => item?.id === sleep.id) || sleep;
+}
+
+function sleepPayload(values, zone) {
+    const result = { ...values };
+    if ('start' in values) result.start = absoluteTime(values.start, zone);
+    if ('end' in values) result.end = values.end ? absoluteTime(values.end, zone) : null;
+    if ('ends_night' in values) result.ends_night = values.ends_night === 'yes';
+    return result;
+}

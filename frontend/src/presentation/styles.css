@@ -1,0 +1,286 @@
+:root {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #252945;
+    background: #eeede9;
+    font-synthesis: none;
+
+    --purple: #6554ba;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+}
+
+a {
+    color: var(--purple);
+    text-underline-offset: 4px;
+}
+
+button {
+    font: inherit;
+    background: var(--purple);
+    color: white;
+    border: 0;
+    border-radius: 14px;
+    padding: 12px 20px;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+:focus-visible {
+    outline: 3px solid var(--purple);
+    outline-offset: 4px;
+}
+
+p {
+    line-height: 1.65;
+}
+
+.app-shell {
+    max-width: 560px;
+    min-height: 100dvh;
+    margin-inline: auto;
+    background: #f8f7f3;
+    padding-bottom: 100px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 26px 24px;
+    border-bottom: 1px solid #e6e5ec;
+}
+
+nav a {
+    padding: 12px 8px;
+    color: #6b6e7d;
+    text-decoration: none;
+    font-size: 13px;
+    border-radius: 12px;
+}
+
+.brand a {
+    font-size: 28px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.brand-note {
+    font-size: 12px;
+    color: #6b6e7d;
+}
+
+main {
+    padding: 16px 24px;
+}
+
+.page-header {
+    margin-block: 20px 28px;
+}
+
+.eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: #6b6e7d;
+}
+
+h1 {
+    font-size: 34px;
+    margin: 12px 0;
+    letter-spacing: -0.04em;
+}
+
+h1:focus {
+    outline: none;
+}
+
+h2 {
+    font-size: 19px;
+}
+
+.card {
+    background: white;
+    padding: 22px;
+    border: 1px solid #e6e5ec;
+    border-radius: 24px;
+    margin-bottom: 18px;
+}
+
+.card p {
+    margin-top: 0;
+}
+
+.quiet {
+    background: #eeebfa;
+}
+
+nav {
+    position: fixed;
+    bottom: 0;
+    width: min(100%, 560px);
+    display: flex;
+    justify-content: space-around;
+    gap: 4px;
+    padding: 18px 8px max(18px, env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid #e6e5ec;
+}
+
+nav a.active {
+    background: #eeebfa;
+    color: var(--purple);
+}
+
+.skip-link {
+    position: absolute;
+    top: -100px;
+}
+
+.skip-link:focus {
+    top: 10px;
+    background: white;
+    padding: 10px;
+    z-index: 2;
+}
+
+input,
+select,
+textarea {
+    font: inherit;
+    width: 100%;
+    max-width: 100%;
+    padding: 12px;
+    border: 1px solid #c9c5d8;
+    border-radius: 12px;
+    background: white;
+    color: inherit;
+    min-width: 0;
+}
+
+label {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+fieldset {
+    border: 1px solid #dedbe8;
+    border-radius: 14px;
+    min-width: 0;
+    padding: 16px;
+}
+
+.form-stack {
+    display: grid;
+    gap: 12px;
+    margin-block: 20px;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-block: 16px;
+}
+
+.secondary,
+.text-button {
+    background: #eeebfa;
+    color: var(--purple);
+    margin-block: 8px;
+}
+
+.error {
+    color: #9b2541;
+    background: #fceef1;
+    padding: 12px;
+    border-radius: 12px;
+}
+
+.notice,
+.muted {
+    font-size: 13px;
+    color: #5a5e71;
+}
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-block: 20px;
+}
+
+.metrics > div {
+    background: #eeebfa;
+    border-radius: 14px;
+    padding: 14px 8px;
+    display: grid;
+    gap: 8px;
+}
+
+.metrics span {
+    font-size: 11px;
+}
+
+.metrics strong {
+    font-size: 14px;
+}
+
+.day-picker {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.day-picker label {
+    min-width: 0;
+    margin: 0;
+    font-size: 12px;
+}
+
+.forecast {
+    border-style: dashed;
+    background: #f2f0fa;
+}
+
+.ongoing {
+    border: 2px solid var(--purple);
+}
+
+.interval-time {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.note {
+    border-left: 3px solid #b9aedc;
+    padding-left: 12px;
+    overflow-wrap: anywhere;
+}
+
+.night-events {
+    border-top: 1px solid #e6e5ec;
+    margin-top: 16px;
+    padding-top: 16px;
+}
+
+.night-events button {
+    margin: 4px;
+}
+
+summary {
+    cursor: pointer;
+    padding-block: 8px;
+}
