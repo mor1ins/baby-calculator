@@ -1,0 +1,34 @@
+{
+    "name": "baby-calculator-frontend",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "engines": {
+        "node": ">=22.13.0"
+    },
+    "scripts": {
+        "lint": "eslint . --max-warnings=0",
+        "lint:styles": "stylelint 'src/**/*.css' --allow-empty-input",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "lint:architecture": "depcruise src --config .dependency-cruiser.cjs --output-type err-long",
+        "lint:duplicates": "jscpd src tests --config .jscpd.json",
+        "test": "node --test tests/architecture/*.test.js",
+        "check": "npm run lint && npm run lint:styles && npm run format:check && npm run lint:architecture && npm run lint:duplicates && npm test"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.39.5",
+        "dependency-cruiser": "^17.4.3",
+        "eslint": "^9.39.5",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-jsx-a11y": "^6.10.2",
+        "eslint-plugin-react": "^7.37.5",
+        "eslint-plugin-react-hooks": "^7.1.1",
+        "eslint-plugin-simple-import-sort": "^12.1.1",
+        "globals": "^16.5.0",
+        "jscpd": "^5.4.0",
+        "prettier": "^3.9.9",
+        "stylelint": "^17.16.0",
+        "stylelint-config-standard": "^40.0.0"
+    }
+}

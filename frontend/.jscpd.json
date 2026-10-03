@@ -1,0 +1,9 @@
+{
+    "threshold": 0,
+    "minLines": 5,
+    "minTokens": 50,
+    "mode": "weak",
+    "format": ["javascript", "jsx", "css"],
+    "reporters": ["console"],
+    "ignore": ["**/node_modules/**", "**/dist/**", "**/coverage/**"]
+}
