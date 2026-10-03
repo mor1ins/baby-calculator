@@ -1,13 +1,11 @@
 from typing import Any, Protocol
 
-from mediapyr import Event, Request
 
-
-class Command(Request):
+class Command:
     """An operation with exactly one handler; queries use the same dispatch path."""
 
 
-class Notification(Event):
+class Notification:
     """A fact delivered to zero or more handlers within the same execution budget."""
 
 

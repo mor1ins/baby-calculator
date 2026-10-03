@@ -12,6 +12,8 @@ BACKEND = Path(__file__).resolve().parents[2]
     "from service.infrastructure import forbidden",
     "from ..infrastructure import forbidden",
     "from service.contracts import bridge",
+    "from service.bootstrap import create_app",
+    "from service.settings import Settings",
 ])
 def test_import_contract_rejects_layer_bypass(tmp_path: Path, statement: str) -> None:
     shutil.copytree(BACKEND / "service", tmp_path / "service")

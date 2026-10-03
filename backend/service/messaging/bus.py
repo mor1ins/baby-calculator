@@ -2,7 +2,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Protocol, cast
 
-from mediapyr import IEventHandler, IRequestHandler, Mediator
+from mediapyr import Event, IEventHandler, IRequestHandler, Mediator, Request
 
 from service.contracts.messages import Command, Notification
 
@@ -71,10 +71,10 @@ class MediatorMessageBus:
         if issubclass(message_type, Command):
             if message_type in self._commands:
                 raise ValueError("Command already has a handler")
-            self._mediator.request_handler(message_type)(cast(type[IRequestHandler], handler_type))
+            self._mediator.request_handler(cast(type[Request], message_type))(cast(type[IRequestHandler], handler_type))
             self._commands.add(message_type)
         elif issubclass(message_type, Notification):
-            self._mediator.event_handler(message_type)(cast(type[IEventHandler], handler_type))
+            self._mediator.event_handler(cast(type[Event], message_type))(cast(type[IEventHandler], handler_type))
         else:
             raise TypeError("Unsupported message type")
         self._bindings[handler_type] = Binding(factory, layer)
@@ -101,8 +101,8 @@ class MediatorMessageBus:
             token = self._execution.set(Execution())
         try:
             if isinstance(message, Command):
-                return await self._mediator.send(message)
-            return await self._mediator.publish(message)
+                return await self._mediator.send(cast(Request, message))
+            return await self._mediator.publish(cast(Event, message))
         finally:
             if token is not None:
                 self._execution.reset(token)
