@@ -1,0 +1,1532 @@
+openapi: 3.1.1
+info:
+  title: Тише — минимальный API v1
+  version: 0.1.0
+  description: 'Контракт для реализации, сервер пока не реализован. JSON, cookie-сессии, CSRF. Один пользователь
+    — один дневник. Непубличные пользовательские маршруты требуют user и работают только с собственными
+    данными; admin дает лишь отдельные административные разрешения. Все ошибки — Error. Общие правила
+    и сценарии: README.md.'
+servers:
+- url: /api/v1
+paths:
+  /session:
+    get:
+      operationId: getSession
+      summary: Текущая сессия и CSRF-токен
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        default:
+          $ref: '#/components/responses/Error'
+      description: 'Доступен до входа: user=null и CSRF-токен анонимной сессии. При необходимости устанавливает
+        cookie. Cache-Control: no-store. Блокированная аутентифицированная сессия: 403 account_blocked,
+        а не user=null.'
+      security: []
+    post:
+      operationId: login
+      summary: Войти
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        default:
+          $ref: '#/components/responses/Error'
+      description: CSRF из GET /session обязателен. Ротирует cookie и csrf_token; неверные данные 401
+        invalid_credentials, блокировка 403 account_blocked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+    delete:
+      operationId: logout
+      summary: Выйти
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Отзывает текущую сессию и удаляет cookie; допускается для анонимной/заблокированной
+        сессии. После выхода повторить GET /session.
+      security:
+      - sessionCookie: []
+        csrfToken: []
+  /register:
+    post:
+      operationId: register
+      summary: Зарегистрироваться и войти
+      responses:
+        '201':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        default:
+          $ref: '#/components/responses/Error'
+      description: 'Назначает только роль user. Роли и blocked в запросе запрещены. Создает сессию, ротирует
+        cookie/CSRF. Конфликт email: 409 email_taken.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+  /me:
+    patch:
+      operationId: updateProfile
+      summary: Изменить имя, часовой пояс или график по умолчанию
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Версия из Session.user. Смена timezone не меняет сохраненные дни. default_schedule_id
+        — только свой неархивный шаблон; null сбрасывает выбор.
+      parameters:
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfilePatch'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+  /days:
+    get:
+      operationId: listDays
+      summary: История / календарь за диапазон
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayList'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - $ref: '#/components/parameters/From'
+      - $ref: '#/components/parameters/To'
+      security:
+      - sessionCookie: []
+  /days/{date}:
+    get:
+      operationId: getDay
+      summary: 'День целиком: факты, прогноз, метрики, заметки'
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Day'
+        default:
+          $ref: '#/components/responses/Error'
+      description: 'Прогноз строит только сервер. Отсутствующая дата дает пустой Day, не 404. Перечитать
+        после изменения и возвращения вкладки в фокус; активный день — примерно раз в минуту. Cache-Control:
+        no-store.'
+      parameters:
+      - name: date
+        in: path
+        required: true
+        schema:
+          type: string
+          format: date
+      security:
+      - sessionCookie: []
+  /days/{date}/schedule:
+    put:
+      operationId: setDaySchedule
+      summary: Назначить или убрать график дня
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Day'
+        default:
+          $ref: '#/components/responses/Error'
+      description: If-Match использует Day.version. Копирует имя/интервалы шаблона, не ссылку на его актуальные
+        значения. Не изменяет фактические сны.
+      parameters:
+      - name: date
+        in: path
+        required: true
+        schema:
+          type: string
+          format: date
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DaySchedulePut'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+  /sleeps:
+    post:
+      operationId: createSleep
+      summary: Записать сон / начать текущий сон
+      responses:
+        '201':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sleep'
+        default:
+          $ref: '#/components/responses/Error'
+      description: 'end=null начинает сон. day задает цикл явно. Нельзя пересекать другой сон или создать
+        второй открытый сон. При первой записи цикла сохраняется снимок default_schedule_id, если выбран.
+        POST автоматически не повторять при сетевой неопределенности: перечитать день.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SleepWrite'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+  /sleeps/{sleep_id}:
+    patch:
+      operationId: updateSleep
+      summary: Исправить или завершить сон
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sleep'
+        default:
+          $ref: '#/components/responses/Error'
+      description: 'Передать end для завершения; ends_night=true означает окончательный утренний подъем.
+        Проверка объединенного состояния. Исправление пересчитывает затронутые дни; заметки/события сохраняют
+        ID. Событие вне новых границ: 409 events_outside_sleep.'
+      parameters:
+      - name: sleep_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SleepPatch'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+    delete:
+      operationId: deleteSleep
+      summary: Удалить ошибочную запись сна
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Error'
+      description: 'Заметки сохраняются как orphaned_comments, если их интервал исчез. Наличие ночных
+        событий: 409 sleep_has_events; сначала явно удалить ошибочные события. Зависимые дни пересчитываются.'
+      parameters:
+      - name: sleep_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+  /sleeps/{sleep_id}/events/{event_id}:
+    put:
+      operationId: putSleepEvent
+      summary: Быстрая отметка пробуждения / плача
+      responses:
+        '201':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SleepEvent'
+        default:
+          $ref: '#/components/responses/Error'
+        '200':
+          description: Повтор уже выполненного идентичного действия.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SleepEvent'
+      description: 'event_id — UUID, созданный клиентом на одно нажатие. Первый запрос: 201, идентичный
+        повтор: 200 даже после завершения сна. Другие данные под тем же ID: 409 idempotency_conflict.
+        Новая отметка только внутри текущего ночного сна, не в будущем. Никак не меняет start/end/ends_night/метрики.'
+      parameters:
+      - name: sleep_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SleepEventPut'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+    delete:
+      operationId: deleteSleepEvent
+      summary: Отменить конкретную ночную отметку
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Error'
+      description: 'Идемпотентно: повтор удаления собственного уже удаленного/отсутствующего события дает
+        204 при существующем доступном сне. Удаленный ID не переиспользуется; повтор PUT после удаления
+        — 409 event_deleted. Можно удалить после завершения сна.'
+      parameters:
+      - name: sleep_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - sessionCookie: []
+        csrfToken: []
+  /schedules:
+    get:
+      operationId: listSchedules
+      summary: Список личных графиков
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleList'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+      - sessionCookie: []
+    post:
+      operationId: createSchedule
+      summary: Создать или скопировать график
+      responses:
+        '201':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Копирование — обычный POST с новым именем и segments исходного шаблона, отдельного
+        endpoint нет.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleCreate'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+  /schedules/{schedule_id}:
+    patch:
+      operationId: updateSchedule
+      summary: Изменить или архивировать график
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        default:
+          $ref: '#/components/responses/Error'
+      description: archived=true вместо физического удаления; дневные снимки сохраняются. Если шаблон
+        был по умолчанию, этот выбор сбрасывается, User.version увеличивается. Снятие архива возможно
+        archived=false.
+      parameters:
+      - name: schedule_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchedulePatch'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+  /comments/{comment_id}:
+    put:
+      operationId: putComment
+      summary: Сохранить или перепривязать заметку интервала
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        default:
+          $ref: '#/components/responses/Error'
+      description: comment_id генерирует клиент. Для создания If-Match="0". target_id берется из timeline,
+        а не вычисляется клиентом. Только actual/ongoing; один комментарий на интервал. Для перепривязки
+        orphaned-комментария сохранить id и передать новый target_id.
+      parameters:
+      - name: comment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentPut'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+    delete:
+      operationId: deleteComment
+      summary: Удалить заметку
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: comment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+  /admin/users:
+    get:
+      operationId: listUsers
+      summary: 'Admin: список пользователей'
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserList'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Стабильный порядок по id. Без хешей паролей, сессионных токенов и секретов. Требуется
+        admin.
+      parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+          maxLength: 100
+        description: Поиск по имени или email.
+      - name: cursor
+        in: query
+        schema:
+          type: string
+        description: Непрозрачный next_cursor предыдущего ответа; передавать с тем же q/limit.
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 30
+      security:
+      - sessionCookie: []
+  /admin/users/{user_id}/days:
+    get:
+      operationId: adminListDays
+      summary: 'Admin: история пользователя'
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayList'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Только чтение. Те же DTO, что в пользовательском API; доступно и для заблокированного
+        пользователя.
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/From'
+      - $ref: '#/components/parameters/To'
+      security:
+      - sessionCookie: []
+  /admin/users/{user_id}/days/{date}:
+    get:
+      operationId: adminGetDay
+      summary: 'Admin: день пользователя со всеми записями'
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Day'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Только чтение, включая заметки, потерявшие интервал, и ночные отметки. Никаких PATCH/POST
+        на чужой дневник.
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: date
+        in: path
+        required: true
+        schema:
+          type: string
+          format: date
+      security:
+      - sessionCookie: []
+  /admin/users/{user_id}/schedules:
+    get:
+      operationId: adminListSchedules
+      summary: 'Admin: графики пользователя'
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleList'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - sessionCookie: []
+  /admin/users/{user_id}/status:
+    patch:
+      operationId: adminUpdateStatus
+      summary: 'Admin: блокировка / разблокировка'
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Только blocked и reason, не роли или дневник. If-Match — User.version. Нельзя блокировать
+        себя или пользователя с ролью admin. Блокировка отзывает все сессии; обе операции записываются
+        в аудит. Разблокировка не восстанавливает старые сессии.
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserStatusPatch'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+components:
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          description: Машинный код; неизвестный код показывается через message.
+        message:
+          type: string
+        fields:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - code
+      - message
+      - fields
+      examples:
+      - code: sleep_overlap
+        message: Сон пересекается с другой записью.
+        fields:
+          start: Укажите время после окончания предыдущего сна.
+    User:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          uniqueItems: true
+        blocked:
+          type: boolean
+        timezone:
+          type: string
+          description: Часовой пояс IANA, например Europe/Moscow.
+        default_schedule_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+      required:
+      - id
+      - version
+      - name
+      - email
+      - roles
+      - blocked
+      - timezone
+      - default_schedule_id
+    Session:
+      type: object
+      additionalProperties: false
+      properties:
+        user:
+          anyOf:
+          - $ref: '#/components/schemas/User'
+          - type: 'null'
+        csrf_token:
+          type: string
+          minLength: 1
+      required:
+      - user
+      - csrf_token
+      examples:
+      - user:
+          id: 10000000-0000-4000-8000-000000000001
+          version: 1
+          name: Анна
+          email: anna@example.com
+          roles:
+          - user
+          blocked: false
+          timezone: Europe/Moscow
+          default_schedule_id: 20000000-0000-4000-8000-000000000001
+        csrf_token: example-only-not-a-real-token
+    Login:
+      type: object
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          writeOnly: true
+      required:
+      - email
+      - password
+    Register:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          writeOnly: true
+        timezone:
+          type: string
+          minLength: 1
+      required:
+      - name
+      - email
+      - password
+      - timezone
+    ProfilePatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        timezone:
+          type: string
+          minLength: 1
+        default_schedule_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+      required: []
+      minProperties: 1
+    ScheduleSegment:
+      type: object
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum:
+          - awake
+          - nap
+          - night
+        duration_minutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+      required:
+      - kind
+      - duration_minutes
+    ScheduleCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleSegment'
+          minItems: 2
+          description: awake, (nap, awake)*, night. Сумма не обязана равняться 1440 минутам.
+      required:
+      - name
+      - segments
+    SchedulePatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleSegment'
+          minItems: 2
+          description: awake, (nap, awake)*, night. Сумма не обязана равняться 1440 минутам.
+        archived:
+          type: boolean
+      required: []
+      minProperties: 1
+    Schedule:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleSegment'
+          minItems: 2
+          description: awake, (nap, awake)*, night. Сумма не обязана равняться 1440 минутам.
+        archived:
+          type: boolean
+      required:
+      - id
+      - version
+      - name
+      - segments
+      - archived
+    ScheduleSnapshot:
+      type: object
+      additionalProperties: false
+      properties:
+        source_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleSegment'
+          minItems: 2
+          description: awake, (nap, awake)*, night. Сумма не обязана равняться 1440 минутам.
+      required:
+      - source_id
+      - name
+      - segments
+      description: Сохраненная копия графика дня; изменение/архивирование шаблона ее не меняет.
+    DaySchedulePut:
+      type: object
+      additionalProperties: false
+      properties:
+        schedule_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+      required:
+      - schedule_id
+      description: null убирает график только у выбранного дня.
+    SleepWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        day:
+          type: string
+          format: date
+        kind:
+          type: string
+          enum:
+          - nap
+          - night
+        start:
+          type: string
+          format: date-time
+          description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+        end:
+          anyOf:
+          - type: string
+            format: date-time
+            description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+          - type: 'null'
+        ends_night:
+          type: boolean
+      required:
+      - day
+      - kind
+      - start
+      - end
+      - ends_night
+      description: day — дата цикла. ends_night=true только для завершенного ночного сна, после которого
+        наступил утренний подъем.
+      allOf:
+      - if:
+          properties:
+            kind:
+              const: nap
+        then:
+          properties:
+            ends_night:
+              const: false
+      - if:
+          properties:
+            end:
+              type: 'null'
+        then:
+          properties:
+            ends_night:
+              const: false
+    SleepPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        day:
+          type: string
+          format: date
+        kind:
+          type: string
+          enum:
+          - nap
+          - night
+        start:
+          type: string
+          format: date-time
+          description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+        end:
+          anyOf:
+          - type: string
+            format: date-time
+            description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+          - type: 'null'
+        ends_night:
+          type: boolean
+      required: []
+      minProperties: 1
+    SleepEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+          description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+      required:
+      - id
+      - occurred_at
+      description: Короткое пробуждение/плач без измеренной длительности; вид события единственный в v1.
+    SleepEventPut:
+      type: object
+      additionalProperties: false
+      properties:
+        occurred_at:
+          type: string
+          format: date-time
+          description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+      required:
+      - occurred_at
+      description: Один UUID на одно нажатие; повтор запроса сохраняет UUID и время.
+    Sleep:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        day:
+          type: string
+          format: date
+        kind:
+          type: string
+          enum:
+          - nap
+          - night
+        start:
+          type: string
+          format: date-time
+          description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+        end:
+          anyOf:
+          - type: string
+            format: date-time
+            description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+          - type: 'null'
+        ends_night:
+          type: boolean
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/SleepEvent'
+      required:
+      - id
+      - version
+      - day
+      - kind
+      - start
+      - end
+      - ends_night
+      - events
+      description: events отсортированы по occurred_at, затем id; количество = длина массива. Дневной
+        сон имеет пустой events.
+      examples:
+      - id: 30000000-0000-4000-8000-000000000002
+        version: 2
+        day: '2026-10-03'
+        kind: night
+        start: '2026-10-03T17:10:00Z'
+        end: null
+        ends_night: false
+        events:
+        - id: 40000000-0000-4000-8000-000000000001
+          occurred_at: '2026-10-03T20:10:00Z'
+      allOf:
+      - if:
+          properties:
+            kind:
+              const: nap
+        then:
+          properties:
+            ends_night:
+              const: false
+      - if:
+          properties:
+            end:
+              type: 'null'
+        then:
+          properties:
+            ends_night:
+              const: false
+      - if:
+          properties:
+            kind:
+              const: nap
+        then:
+          properties:
+            events:
+              maxItems: 0
+    Comment:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        target_id:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 200
+          - type: 'null'
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+      - id
+      - version
+      - target_id
+      - text
+      description: target_id=null только у заметки, утратившей интервал. Ее текст сохраняется в orphaned_comments.
+    CommentPut:
+      type: object
+      additionalProperties: false
+      properties:
+        target_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+      - target_id
+      - text
+      description: target_id — непрозрачный id фактического/текущего интервала из timeline. Одна заметка
+        на интервал; перемещение заметки использует тот же id.
+    TimelineInterval:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 200
+          - type: 'null'
+        kind:
+          type: string
+          enum:
+          - awake
+          - nap
+          - night
+        status:
+          type: string
+          enum:
+          - actual
+          - ongoing
+          - forecast
+        start:
+          type: string
+          format: date-time
+          description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+        end:
+          anyOf:
+          - type: string
+            format: date-time
+            description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+          - type: 'null'
+        expected_end:
+          anyOf:
+          - type: string
+            format: date-time
+            description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+          - type: 'null'
+        duration_seconds:
+          type: integer
+          minimum: 0
+        sleep_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+        comment:
+          anyOf:
+          - $ref: '#/components/schemas/Comment'
+          - type: 'null'
+      required:
+      - id
+      - kind
+      - status
+      - start
+      - end
+      - expected_end
+      - duration_seconds
+      - sleep_id
+      - comment
+      description: 'Факт: end задан, expected_end=null. Текущий: end=null, duration_seconds до as_of,
+        expected_end — прогноз или null. Прогноз: end задан, id/sleep_id/comment/expected_end=null. Ночные
+        разрывы не входят в day_awake_seconds. Длительности считает backend.'
+      allOf:
+      - if:
+          properties:
+            status:
+              const: actual
+        then:
+          properties:
+            id:
+              type: string
+            end:
+              type: string
+            expected_end:
+              type: 'null'
+      - if:
+          properties:
+            status:
+              const: ongoing
+        then:
+          properties:
+            id:
+              type: string
+            end:
+              type: 'null'
+      - if:
+          properties:
+            status:
+              const: forecast
+        then:
+          properties:
+            id:
+              type: 'null'
+            end:
+              type: string
+            expected_end:
+              type: 'null'
+            sleep_id:
+              type: 'null'
+            comment:
+              type: 'null'
+    Metrics:
+      type: object
+      additionalProperties: false
+      properties:
+        day_sleep_seconds:
+          anyOf:
+          - type: integer
+            minimum: 0
+          - type: 'null'
+        night_sleep_seconds:
+          anyOf:
+          - type: integer
+            minimum: 0
+          - type: 'null'
+        day_awake_seconds:
+          anyOf:
+          - type: integer
+            minimum: 0
+          - type: 'null'
+      required:
+      - day_sleep_seconds
+      - night_sleep_seconds
+      - day_awake_seconds
+      description: Фактические итоги на as_of, включая прошедшую часть текущего интервала. null — недостаточно
+        данных или ночь еще не началась; 0 — известный нулевой результат. Прогноз и длительность быстрых
+        отметок не прибавляются.
+    DaySummary:
+      type: object
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        complete:
+          type: boolean
+        metrics:
+          $ref: '#/components/schemas/Metrics'
+      required:
+      - date
+      - complete
+      - metrics
+    Day:
+      type: object
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        version:
+          type: integer
+          minimum: 0
+        timezone:
+          type: string
+        as_of:
+          type: string
+          format: date-time
+          description: RFC 3339 с обязательным часовым поясом. Ответы сервера — UTC (Z).
+        complete:
+          type: boolean
+        schedule:
+          anyOf:
+          - $ref: '#/components/schemas/ScheduleSnapshot'
+          - type: 'null'
+        sleeps:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sleep'
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineInterval'
+        metrics:
+          $ref: '#/components/schemas/Metrics'
+        orphaned_comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+        issues:
+          type: array
+          items:
+            type: string
+            enum:
+            - missing_morning
+            - missing_night_end
+            - no_schedule
+            - plan_exceeded
+            - extra_naps
+            - unassigned_comments
+        previous_night:
+          anyOf:
+          - $ref: '#/components/schemas/Sleep'
+          - type: 'null'
+      required:
+      - date
+      - version
+      - timezone
+      - as_of
+      - complete
+      - schedule
+      - sleeps
+      - timeline
+      - metrics
+      - orphaned_comments
+      - issues
+      - previous_night
+      description: 'Один экран дня. Пустой день: version=0, пустые массивы, schedule=null и неизвестные
+        метрики=null. GET ничего не создает. version отражает сохраненные изменения, но не течение времени.'
+      examples:
+      - date: '2026-10-03'
+        version: 4
+        timezone: Europe/Moscow
+        as_of: '2026-10-03T11:20:00Z'
+        complete: false
+        schedule:
+          source_id: 20000000-0000-4000-8000-000000000001
+          name: Обычный день
+          segments:
+          - kind: awake
+            duration_minutes: 260
+          - kind: nap
+            duration_minutes: 80
+          - kind: awake
+            duration_minutes: 280
+          - kind: nap
+            duration_minutes: 20
+          - kind: awake
+            duration_minutes: 180
+          - kind: night
+            duration_minutes: 600
+        sleeps:
+        - id: 30000000-0000-4000-8000-000000000001
+          version: 1
+          day: '2026-10-03'
+          kind: nap
+          start: '2026-10-03T07:50:00Z'
+          end: '2026-10-03T09:10:00Z'
+          ends_night: false
+          events: []
+        timeline:
+        - id: interval-wake-0
+          kind: awake
+          status: actual
+          start: '2026-10-03T03:30:00Z'
+          end: '2026-10-03T07:50:00Z'
+          expected_end: null
+          duration_seconds: 15600
+          sleep_id: null
+          comment: null
+        - id: interval-sleep-1
+          kind: nap
+          status: actual
+          start: '2026-10-03T07:50:00Z'
+          end: '2026-10-03T09:10:00Z'
+          expected_end: null
+          duration_seconds: 4800
+          sleep_id: 30000000-0000-4000-8000-000000000001
+          comment:
+            id: 50000000-0000-4000-8000-000000000001
+            version: 1
+            target_id: interval-sleep-1
+            text: Уснул на прогулке
+        - id: interval-wake-2
+          kind: awake
+          status: ongoing
+          start: '2026-10-03T09:10:00Z'
+          end: null
+          expected_end: '2026-10-03T13:50:00Z'
+          duration_seconds: 7800
+          sleep_id: null
+          comment: null
+        - id: null
+          kind: nap
+          status: forecast
+          start: '2026-10-03T13:50:00Z'
+          end: '2026-10-03T14:10:00Z'
+          expected_end: null
+          duration_seconds: 1200
+          sleep_id: null
+          comment: null
+        - id: null
+          kind: awake
+          status: forecast
+          start: '2026-10-03T14:10:00Z'
+          end: '2026-10-03T17:10:00Z'
+          expected_end: null
+          duration_seconds: 10800
+          sleep_id: null
+          comment: null
+        - id: null
+          kind: night
+          status: forecast
+          start: '2026-10-03T17:10:00Z'
+          end: '2026-10-04T03:10:00Z'
+          expected_end: null
+          duration_seconds: 36000
+          sleep_id: null
+          comment: null
+        metrics:
+          day_sleep_seconds: 4800
+          night_sleep_seconds: null
+          day_awake_seconds: 23400
+        orphaned_comments: []
+        issues:
+        - missing_night_end
+        previous_night:
+          id: 30000000-0000-4000-8000-000000000003
+          version: 1
+          day: '2026-10-02'
+          kind: night
+          start: '2026-10-02T17:30:00Z'
+          end: '2026-10-03T03:30:00Z'
+          ends_night: true
+          events: []
+      - date: '2026-10-05'
+        version: 0
+        timezone: Europe/Moscow
+        as_of: '2026-10-05T05:00:00Z'
+        complete: false
+        schedule: null
+        sleeps: []
+        timeline: []
+        metrics:
+          day_sleep_seconds: null
+          night_sleep_seconds: null
+          day_awake_seconds: null
+        orphaned_comments: []
+        issues:
+        - missing_morning
+        - missing_night_end
+        - no_schedule
+        previous_night: null
+    DayList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DaySummary'
+          maxItems: 31
+      required:
+      - items
+      description: Только существующие дни в диапазоне, по date DESC. Переход по истории — соседними диапазонами
+        не более 31 дня.
+    ScheduleList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Schedule'
+      required:
+      - items
+      description: Все шаблоны пользователя, включая архивные, по id. В v1 список без пагинации; клиент
+        фильтрует archived.
+    UserList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+          maxItems: 100
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - items
+      - next_cursor
+    UserStatusPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        blocked:
+          type: boolean
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required:
+      - blocked
+      - reason
+  parameters:
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: 'Версия изменяемого ресурса в двойных кавычках, например "3". Для создания заметки/пустого
+        дня — "0". Несовпадение: 412; отсутствие: 428.'
+      schema:
+        type: string
+        pattern: ^"[0-9]+"$
+    From:
+      name: from
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+      description: Начало включительно.
+    To:
+      name: to
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+      description: Конец включительно; from <= to, не более 31 дня.
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Анонимная или аутентифицированная серверная сессия. Cookie HttpOnly; Secure; SameSite=Lax;
+        Path=/; без Domain. Анонимная сессия разрешена только для register/login/logout.
+    csrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+  responses:
+    Error:
+      description: Единая ошибка. Статусы и коды перечислены в README.md.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NoContent:
+      description: Операция выполнена; тело отсутствует.

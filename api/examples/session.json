@@ -1,0 +1,15 @@
+{
+  "user": {
+    "id": "10000000-0000-4000-8000-000000000001",
+    "version": 1,
+    "name": "Анна",
+    "email": "anna@example.com",
+    "roles": [
+      "user"
+    ],
+    "blocked": false,
+    "timezone": "Europe/Moscow",
+    "default_schedule_id": "20000000-0000-4000-8000-000000000001"
+  },
+  "csrf_token": "example-only-not-a-real-token"
+}

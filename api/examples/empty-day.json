@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-05",
+  "version": 0,
+  "timezone": "Europe/Moscow",
+  "as_of": "2026-10-05T05:00:00Z",
+  "complete": false,
+  "schedule": null,
+  "sleeps": [],
+  "timeline": [],
+  "metrics": {
+    "day_sleep_seconds": null,
+    "night_sleep_seconds": null,
+    "day_awake_seconds": null
+  },
+  "orphaned_comments": [],
+  "issues": [
+    "missing_morning",
+    "missing_night_end",
+    "no_schedule"
+  ],
+  "previous_night": null
+}
