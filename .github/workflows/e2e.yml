@@ -1,0 +1,31 @@
+name: Prototype E2E
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: docker compose up --build -d
+      - run: npm ci && npx playwright install --with-deps chromium && npm test
+        working-directory: tests
+      - if: failure()
+        run: docker compose logs --tail=100
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure
+          path: tests/test-results
+          retention-days: 7
+      - if: always()
+        run: docker compose down

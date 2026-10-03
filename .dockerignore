@@ -1,0 +1,16 @@
+.git
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.import_linter_cache
+**/dist
+.env
+.env.*
+only_web_version
+design/previews
+
+**/test-results
+**/playwright-report
+**/*.log

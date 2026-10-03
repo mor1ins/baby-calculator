@@ -1,0 +1,51 @@
+name: baby-local
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: baby
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-baby_local_only}
+      POSTGRES_DB: baby
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U baby -d baby]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  migrate:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.backend
+    environment: &backend-env
+      BABY_DATABASE_URL: postgresql+psycopg://baby:${POSTGRES_PASSWORD:-baby_local_only}@postgres:5432/baby
+      BABY_ENVIRONMENT: local
+      BABY_PUBLIC_ORIGIN: ${APP_ORIGIN:-http://localhost:${APP_PORT:-8080}}
+    command: [uv, run, --locked, --no-dev, alembic, upgrade, head]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.backend
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, /app/backend/.venv/bin/python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.frontend
+    ports:
+      - ${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:80
+    depends_on:
+      backend:
+        condition: service_healthy
+volumes:
+  postgres-data:

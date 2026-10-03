@@ -1,0 +1,149 @@
+name: Deploy dev
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Optional PR from this repository; empty means main'
+        type: string
+        default: ''
+permissions:
+  contents: read
+  packages: write
+  pull-requests: read
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.ref.outputs.sha }}
+    steps:
+      - id: ref
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ inputs.pr_number }}
+          PUSH_SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+        shell: bash
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          if [[ -n "$PR" ]]; then
+            [[ "$PR" =~ ^[0-9]+$ ]]
+            metadata=$(gh api "repos/$REPOSITORY/pulls/$PR")
+            test "$(jq -r .head.repo.full_name <<< "$metadata")" = "$REPOSITORY"
+            test "$(jq -r .state <<< "$metadata")" = open
+            sha=$(jq -r .head.sha <<< "$metadata")
+          elif [[ "$EVENT" = push ]]; then
+            sha=$PUSH_SHA
+          else
+            sha=$(gh api "repos/$REPOSITORY/commits/main" --jq .sha)
+          fi
+          [[ "$sha" =~ ^[a-f0-9]{40}$ ]]
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+  verify:
+    needs: resolve
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: baby_test
+          POSTGRES_PASSWORD: baby_test
+          POSTGRES_DB: baby_test
+        ports: [5432:5432]
+        options: --health-cmd 'pg_isready -U baby_test' --health-interval 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: python -m pip install uv==0.9.26
+      - run: make -C backend setup check test-integration
+        env:
+          BABY_TEST_DATABASE_URL: postgresql+psycopg://baby_test:baby_test@localhost:5432/baby_test
+      - run: npm ci && npm run check
+        working-directory: frontend
+      - run: python -m pip install -r api/requirements-dev.txt && python api/validate.py
+      - run: docker compose up --build -d
+      - run: npm ci && npx playwright install --with-deps chromium && npm test
+        working-directory: tests
+      - if: always()
+        run: docker compose down
+  build:
+    needs: [resolve, verify]
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.backend.outputs.digest }}
+      frontend: ${{ steps.frontend.outputs.digest }}
+      repository: ${{ steps.names.outputs.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - id: names
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: echo "repository=${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        id: backend
+        with:
+          context: .
+          file: deploy/Dockerfile.backend
+          push: true
+          tags: ghcr.io/${{ steps.names.outputs.repository }}/backend:${{ needs.resolve.outputs.sha }}
+      - uses: docker/build-push-action@v6
+        id: frontend
+        with:
+          context: .
+          file: deploy/Dockerfile.frontend
+          push: true
+          tags: ghcr.io/${{ steps.names.outputs.repository }}/frontend:${{ needs.resolve.outputs.sha }}
+  deploy:
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Write immutable release manifest
+        env:
+          REPOSITORY: ${{ needs.build.outputs.repository }}
+          BACKEND: ${{ needs.build.outputs.backend }}
+          FRONTEND: ${{ needs.build.outputs.frontend }}
+        run: |
+          printf 'BACKEND_IMAGE=ghcr.io/%s/backend@%s\nFRONTEND_IMAGE=ghcr.io/%s/frontend@%s\n' "$REPOSITORY" "$BACKEND" "$REPOSITORY" "$FRONTEND" > release.env
+      - name: Deploy over verified SSH
+        run: bash deploy/send-release.sh
+        env:
+          DEPLOY_ENV: DEV
+          SSH_HOST: ${{ secrets.DEV_SSH_HOST }}
+          SSH_USER: ${{ secrets.DEV_SSH_USER }}
+          SSH_KEY: ${{ secrets.DEV_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEV_SSH_KNOWN_HOSTS }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dev-verified-release
+          path: release.env
+          retention-days: 30

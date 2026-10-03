@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: baby
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set database password}
+      POSTGRES_DB: baby
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U baby -d baby]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  backend:
+    image: ${BACKEND_IMAGE:?Set immutable backend image}
+    restart: unless-stopped
+    environment:
+      BABY_ENVIRONMENT: ${APP_ENV:?dev or prod}
+      BABY_PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set HTTPS origin}
+      BABY_DATABASE_URL: postgresql+psycopg://baby:${POSTGRES_PASSWORD}@postgres:5432/baby
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, /app/backend/.venv/bin/python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  frontend:
+    image: ${FRONTEND_IMAGE:?Set immutable frontend image}
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:${APP_PORT:?Set unique environment port}:80
+    depends_on:
+      backend:
+        condition: service_healthy
+volumes:
+  postgres-data:

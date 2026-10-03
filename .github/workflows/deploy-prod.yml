@@ -1,0 +1,46 @@
+name: Promote dev to prod
+on:
+  workflow_dispatch:
+    inputs:
+      dev_run_id:
+        description: 'Successful Deploy dev run ID; promotes the same image digests'
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Verify source deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ inputs.dev_run_id }}
+        run: |
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          metadata=$(gh api "repos/$REPOSITORY/actions/runs/$RUN_ID")
+          test "$(jq -r .path <<< "$metadata")" = .github/workflows/deploy-dev.yml
+          test "$(jq -r .conclusion <<< "$metadata")" = success
+          test "$(jq -r .head_branch <<< "$metadata")" = main
+      - uses: actions/download-artifact@v4
+        with:
+          name: dev-verified-release
+          run-id: ${{ inputs.dev_run_id }}
+          github-token: ${{ github.token }}
+      - name: Promote immutable images
+        run: bash deploy/send-release.sh
+        env:
+          DEPLOY_ENV: PROD
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
