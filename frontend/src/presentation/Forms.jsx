@@ -22,7 +22,7 @@ export function ErrorMessage({ error }) {
 }
 ErrorMessage.propTypes = { error: PropTypes.object };
 
-export function Form({ fields, initial = {}, submit, label = 'Сохранить', children }) {
+export function Form({ fields, initial = {}, submit, label = 'Сохранить', disabled = false, children }) {
     const {
         register,
         resetField,
@@ -35,6 +35,7 @@ export function Form({ fields, initial = {}, submit, label = 'Сохранить
     });
     const [error, setError] = useState(null);
     const send = handleSubmit(async (values) => {
+        if (disabled) return;
         setError(null);
         try {
             await submit(values);
@@ -64,7 +65,7 @@ export function Form({ fields, initial = {}, submit, label = 'Сохранить
             ))}
             {children}
             <ErrorMessage error={error} />
-            <button type="submit" disabled={isSubmitting}>
+            <button type="submit" disabled={disabled || isSubmitting}>
                 {isSubmitting ? 'Сохраняем…' : label}
             </button>
         </form>
@@ -75,6 +76,7 @@ Form.propTypes = {
     initial: PropTypes.object,
     submit: PropTypes.func.isRequired,
     label: PropTypes.string,
+    disabled: PropTypes.bool,
     children: PropTypes.node,
 };
 

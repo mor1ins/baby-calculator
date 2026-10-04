@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
@@ -83,4 +83,20 @@ it.each([false, true])('controls registration links and direct routes: %s', asyn
         await screen.findByRole('button', { name: enabled ? 'Создать аккаунт' : 'Войти', exact: true }),
     ).toBeInTheDocument();
     expect(Boolean(screen.queryByLabelText('Ваше имя'))).toBe(enabled);
+});
+
+it.each([
+    ['/login', 'Войти'],
+    ['/register', 'Создать аккаунт'],
+])('waits for the session before submitting %s without losing input', async (path, label) => {
+    const pending = deferred();
+    mount(createRuntime({ repository: { read: () => pending.promise } }), path, true);
+    const button = screen.getByRole('button', { name: label, exact: true });
+    expect(button).toBeDisabled();
+    const email = screen.getByLabelText('Email');
+    await userEvent.type(email, 'parent@example.com');
+    await act(async () => pending.resolve(session()));
+    await waitFor(() => expect(button).toBeEnabled());
+    expect(email).toHaveValue('parent@example.com');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });

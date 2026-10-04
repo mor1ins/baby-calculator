@@ -44,6 +44,7 @@ export function AuthPage({ registration = false, registrationEnabled }) {
                 fields={fields}
                 initial={{ timezone: 'Europe/Moscow' }}
                 submit={submit}
+                disabled={session.isPending}
                 label={registration ? 'Создать аккаунт' : 'Войти'}
             />
             {(registration || registrationEnabled) && (

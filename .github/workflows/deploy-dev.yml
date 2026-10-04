@@ -57,7 +57,7 @@ jobs:
           POSTGRES_PASSWORD: baby_test
           POSTGRES_DB: baby_test
         ports: [5432:5432]
-        options: --health-cmd 'pg_isready -U baby_test' --health-interval 5s --health-retries 20
+        options: --health-cmd "pg_isready -U baby_test -d baby_test" --health-interval 5s --health-retries 20
     steps:
       - uses: actions/checkout@v4
         with:
