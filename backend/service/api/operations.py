@@ -8,6 +8,7 @@ from fastapi.encoders import jsonable_encoder
 from jsonschema import Draft202012Validator, FormatChecker
 from starlette.responses import JSONResponse, Response
 
+from service.api.diagnostics import operation_context
 from service.contracts.messages import MessageBus
 from service.contracts.operations import AppError, Operation, OperationResult
 
@@ -72,10 +73,12 @@ class ApiEndpoints:
                     raise AppError(422, "validation_error", "Ожидается JSON") from exc
                 self._validate(spec["requestBody"]["content"]["application/json"]["schema"], data)
             params["_peer"] = request.client.host if request.client else "local"
-            result = await self._bus.send(Operation(
+            operation = Operation(
                 spec["operationId"], self._clock(), data, params, request.cookies.get("session", ""),
                 request.headers.get("X-CSRF-Token", ""), version,
-            ))
+            )
+            request.scope["diagnostics"] = operation_context(operation)
+            result = await self._bus.send(operation)
             return self._response(result)
         return endpoint
 

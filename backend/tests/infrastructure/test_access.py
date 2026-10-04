@@ -1,9 +1,11 @@
 from typing import Any
 
 import pytest
+from dependency_injector import providers
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
+from service.container import Container
 from tests.infrastructure.api_support import register, write
 
 pytestmark = pytest.mark.integration
@@ -72,3 +74,19 @@ def test_ownership_csrf_and_unknown_fields(client: TestClient) -> None:
         assert client.patch("/api/v1/me", json={"name": "Новое"},
                             headers={"If-Match": '"1"', **headers}).status_code == 403
     assert client.patch("/api/v1/me", json={"roles": ["admin"]}, headers={"If-Match": '"1"'}).status_code == 422
+
+
+def test_login_works_when_registration_is_disabled(client: TestClient, sql_container: Container) -> None:
+    existing = register(client)
+    settings = sql_container.settings().model_copy(update={"registration_enabled": False})
+    sql_container.settings.override(providers.Object(settings))
+    assert client.get("/api/v1/session").json()["user"]["id"] == existing["id"]
+    sign_out(client)
+    client.headers["X-CSRF-Token"] = client.get("/api/v1/session").json()["csrf_token"]
+    denied = client.post("/api/v1/register", json={
+        "email": "closed@example.com", "password": "test-password-123", "name": "Тест", "timezone": "Europe/Moscow",
+    })
+    assert denied.status_code == 403
+    assert denied.json()["code"] == "registration_disabled"
+    logged_in = write(client, "POST", "/session", {"email": existing["email"], "password": "test-password-123"})
+    assert logged_in["user"]["id"] == existing["id"]

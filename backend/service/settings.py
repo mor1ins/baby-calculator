@@ -11,6 +11,10 @@ class Settings(BaseSettings):
 
     environment: Literal["local", "dev", "prod", "test"] = "local"
 
+    registration_enabled: bool = False
+
+    clock_skew_tolerance_minutes: int = Field(default=20, ge=0)
+
     public_origin: str = "http://localhost:8080"
 
     database_url: SecretStr | None = None

@@ -2,12 +2,14 @@ from datetime import datetime
 from typing import Any
 
 from service.contracts.operations import AppError, Operation, OperationResult
+from service.infrastructure.repositories.sleep_rules import exceeds_clock_tolerance
 from service.infrastructure.repositories.sleeps import SleepsRepository
 
 
 class EventsRepository:
-    def __init__(self, sleeps: SleepsRepository) -> None:
+    def __init__(self, sleeps: SleepsRepository, clock_skew_tolerance_minutes: int) -> None:
         self._sleeps = sleeps
+        self._clock_skew_tolerance_minutes = clock_skew_tolerance_minutes
 
     async def touch(self, sleep: dict[str, Any], op: Operation) -> None:
         records = self._sleeps.days.records
@@ -34,7 +36,8 @@ class EventsRepository:
             return self._repeat(event, occurred)
         if sleep["kind"] != "night" or sleep["end"] is not None:
             raise AppError(409, "sleep_closed", "Отметка доступна только во время ночного сна")
-        if not sleep["start"] <= occurred <= op.now:
+        if occurred < sleep["start"] or exceeds_clock_tolerance(
+                occurred, op.now, self._clock_skew_tolerance_minutes):
             raise AppError(422, "validation_error", "Отметка должна находиться внутри текущего сна")
         await records.rows(
             """INSERT INTO sleep_events(id,diary_id,sleep_id,occurred_at,created_at)

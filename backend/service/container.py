@@ -72,13 +72,19 @@ class Container(containers.DeclarativeContainer):
     calculate_days_handler = providers.Factory(CalculateDaysHandler)
     password_hasher = providers.Singleton(PasswordHasher)
     passwords = providers.Singleton(Passwords, hasher=password_hasher)
-    repository_scope = providers.Factory(repository_scope, passwords=passwords)
+    repository_scope = providers.Factory(
+        repository_scope, passwords=passwords,
+        clock_skew_tolerance_minutes=providers.Callable(lambda value: value.clock_skew_tolerance_minutes, settings),
+    )
     operation_repository = providers.Factory(
         SqlOperationRepository, session_factory=session_factory, scope_factory=repository_scope.provider,
         transaction_factory=transaction.provider,
     )
     persist_operation_handler = providers.Factory(PersistOperationHandler, repository=operation_repository)
-    operation_handler = providers.Factory(OperationHandler, bus=message_bus)
+    operation_handler = providers.Factory(
+        OperationHandler, bus=message_bus,
+        registration_enabled=providers.Callable(lambda value: value.registration_enabled, settings),
+    )
     api_specification = providers.Singleton(specification)
     clock = providers.Object(utc_now)
     cookie_policy = providers.Callable(

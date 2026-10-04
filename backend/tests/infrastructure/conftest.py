@@ -65,7 +65,8 @@ def migrated_connection(database_url: str, migration_config: Config) -> Iterator
 def configured_container(database_url: str, migration_config: Config) -> Container:
     command.upgrade(migration_config, "head")
     result = Container()
-    result.settings.override(providers.Object(Settings(database_url=SecretStr(database_url))))
+    settings = Settings(database_url=SecretStr(database_url), registration_enabled=True)
+    result.settings.override(providers.Object(settings))
     return result
 
 

@@ -13,7 +13,7 @@ createRoot(document.getElementById('root')).render(
     <StrictMode>
         <Providers runtime={runtime}>
             <BrowserRouter>
-                <App />
+                <App registrationEnabled={globalThis.__BABY_CONFIG__?.registrationEnabled === true} />
             </BrowserRouter>
         </Providers>
     </StrictMode>,

@@ -7,6 +7,7 @@ from dependency_injector import providers
 from service.container import Container, register_handlers
 from service.contracts.operations import Operation, OperationResult
 from service.messaging.bus import ArchitectureViolation
+from service.settings import Settings
 from service.wiring import specification
 
 DAY_OPERATIONS = {"getDay", "adminGetDay", "setDaySchedule", "listDays", "adminListDays"}
@@ -30,6 +31,7 @@ class FakeOperations:
 
 def operation_container(repository: FakeOperations, budget: int) -> Container:
     container = Container()
+    container.settings.override(providers.Object(Settings(registration_enabled=True)))
     container.operation_repository.override(providers.Object(repository))
     container.message_bus.override(providers.Singleton(
         container.message_bus.provides, mediator_factory=container.mediator.provider, max_transfers=budget,

@@ -30,15 +30,16 @@ def specification() -> dict[str, Any]:
     return result
 
 
-def repository_scope(transaction: Transaction, passwords: Passwords) -> RepositoryScope:
+def repository_scope(transaction: Transaction, passwords: Passwords,
+                     clock_skew_tolerance_minutes: int) -> RepositoryScope:
     records = Records(transaction)
     identity = IdentityRepository(
         records, passwords, SqlAccountsRepository(transaction), SqlDiariesRepository(transaction),
     )
     schedules = SchedulesRepository(records, identity)
     days = DaysRepository(records, schedules)
-    sleeps = SleepsRepository(days, TargetsRepository(days))
-    events = EventsRepository(sleeps)
+    sleeps = SleepsRepository(days, TargetsRepository(days), clock_skew_tolerance_minutes)
+    events = EventsRepository(sleeps, clock_skew_tolerance_minutes)
     comments = CommentsRepository(sleeps, events)
     admin = AdminRepository(records, identity)
     return RepositoryScope(records, identity, {

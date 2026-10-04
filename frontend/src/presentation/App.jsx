@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useEffect, useRef } from 'react';
-import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 
 import { AuthPage, Profile } from './Account.jsx';
 import { AdminDiary, AdminUsers } from './Admin.jsx';
@@ -18,7 +18,7 @@ const sections = [
     { path: '/profile', title: 'Профиль', description: 'Ваш аккаунт и настройки дневника.' },
 ];
 
-function Page({ title, description, section }) {
+function Page({ title, description, section, registrationEnabled = false }) {
     const session = useSession();
     const user = session.data?.user;
     const heading = useRef(null);
@@ -38,8 +38,8 @@ function Page({ title, description, section }) {
             <section className="session-state" aria-label="Подключение дневника">
                 <SessionState />
             </section>
-            {section === 'login' && <AuthPage />}
-            {section === 'register' && <AuthPage registration />}
+            {section === 'login' && <AuthPage registrationEnabled={registrationEnabled} />}
+            {section === 'register' && <AuthPage registration registrationEnabled={registrationEnabled} />}
             {user && !user.blocked && !session.isError && <Content section={section} user={user} />}
         </>
     );
@@ -48,9 +48,10 @@ Page.propTypes = {
     title: PropTypes.string.isRequired,
     description: PropTypes.string.isRequired,
     section: PropTypes.string,
+    registrationEnabled: PropTypes.bool,
 };
 
-export function App() {
+export function App({ registrationEnabled = false }) {
     return (
         <div className="app-shell">
             <a className="skip-link" href="#content">
@@ -74,12 +75,28 @@ export function App() {
                     ))}
                     <Route
                         path="/login"
-                        element={<Page section="login" title="Вход" description="Вернитесь к своему дневнику." />}
+                        element={
+                            <Page
+                                section="login"
+                                title="Вход"
+                                description="Вернитесь к своему дневнику."
+                                registrationEnabled={registrationEnabled}
+                            />
+                        }
                     />
                     <Route
                         path="/register"
                         element={
-                            <Page section="register" title="Регистрация" description="Начните историю вашего малыша." />
+                            registrationEnabled ? (
+                                <Page
+                                    section="register"
+                                    title="Регистрация"
+                                    description="Начните историю вашего малыша."
+                                    registrationEnabled
+                                />
+                            ) : (
+                                <Navigate to="/login" replace />
+                            )
                         }
                     />
                     <Route
@@ -120,6 +137,8 @@ export function App() {
         </div>
     );
 }
+
+App.propTypes = { registrationEnabled: PropTypes.bool };
 
 function Content({ section, user }) {
     if (section === '/profile') return <Profile user={user} />;

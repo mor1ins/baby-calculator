@@ -5,6 +5,13 @@ environment=${1:?dev or prod}
 case "$environment" in dev|prod) ;; *) exit 2 ;; esac
 exec 9>release.lock
 flock 9
+# Actions supplies its short-lived read-only registry token over SSH stdin.
+if [[ -n "${GHCR_USER:-}" ]]; then
+    export DOCKER_CONFIG
+    DOCKER_CONFIG=$(mktemp -d)
+    trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+    docker login ghcr.io --username "$GHCR_USER" --password-stdin
+fi
 compose() { docker compose -p "baby-$environment" --env-file .env --env-file "$1" -f compose.yaml "${@:2}"; }
 # Validate data without sourcing an artifact as executable shell code.
 python3 - <<'PY'

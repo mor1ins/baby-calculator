@@ -14,9 +14,10 @@ def public_sleep(sleep: dict[str, Any]) -> dict[str, Any]:
 
 
 class SleepsRepository:
-    def __init__(self, days: DaysRepository, targets: TargetsRepository) -> None:
+    def __init__(self, days: DaysRepository, targets: TargetsRepository, clock_skew_tolerance_minutes: int) -> None:
         self.days = days
         self._targets = targets
+        self._clock_skew_tolerance_minutes = clock_skew_tolerance_minutes
 
     async def find(self, diary_id: Any, sleep_id: str) -> dict[str, Any]:
         sleeps = await self.days.sleeps(diary_id)
@@ -33,7 +34,7 @@ class SleepsRepository:
         sleep = {**(current or {"id": uuid4(), "version": 1, "events": []}), **op.data}
         self._parse(sleep)
         day = await self.days.ensure(diary, sleep["day"], initialize=True)
-        sleep_times(sleep, op.now)
+        sleep_times(sleep, op.now, self._clock_skew_tolerance_minutes)
         sleep_cycle(sleep, await self.days.sleeps(diary["id"]), day["timezone"])
         await self._save(sleep, day, op, current)
         await self._targets.reconcile(diary, sleep["id"], op.now)

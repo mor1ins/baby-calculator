@@ -5,10 +5,19 @@ from zoneinfo import ZoneInfo
 from service.contracts.operations import AppError
 
 
-def sleep_times(sleep: dict[str, Any], now: datetime) -> None:
+def exceeds_clock_tolerance(value: datetime, now: datetime, tolerance_minutes: int) -> bool:
+    delta = value - now
+    return delta > timedelta(0) and delta >= timedelta(minutes=tolerance_minutes)
+
+
+def sleep_times(sleep: dict[str, Any], now: datetime, tolerance_minutes: int) -> None:
     start, end = sleep["start"], sleep["end"]
-    if start > now or (end is not None and (end > now or end <= start)):
-        raise AppError(422, "validation_error", "Проверьте время: конец позже начала, факты не в будущем")
+    if exceeds_clock_tolerance(start, now, tolerance_minutes):
+        raise AppError(422, "validation_error", "Начало сна находится в будущем", {"start": "future"})
+    if end is not None and exceeds_clock_tolerance(end, now, tolerance_minutes):
+        raise AppError(422, "validation_error", "Конец сна находится в будущем", {"end": "future"})
+    if end is not None and end <= start:
+        raise AppError(422, "validation_error", "Конец сна должен быть позже начала", {"end": "not_after_start"})
     if sleep["ends_night"] and (sleep["kind"] != "night" or end is None):
         raise AppError(422, "validation_error", "Завершить ночь можно только у законченного ночного сна")
     for event in sleep["events"]:

@@ -20,6 +20,8 @@ services:
     environment: &backend-env
       BABY_DATABASE_URL: postgresql+psycopg://baby:${POSTGRES_PASSWORD:-baby_local_only}@postgres:5432/baby
       BABY_ENVIRONMENT: local
+      BABY_REGISTRATION_ENABLED: ${BABY_REGISTRATION_ENABLED:-false}
+      BABY_CLOCK_SKEW_TOLERANCE_MINUTES: ${BABY_CLOCK_SKEW_TOLERANCE_MINUTES:-20}
       BABY_PUBLIC_ORIGIN: ${APP_ORIGIN:-http://localhost:${APP_PORT:-8080}}
     command: [uv, run, --locked, --no-dev, alembic, upgrade, head]
     depends_on:
@@ -39,6 +41,8 @@ services:
       timeout: 5s
       retries: 12
   frontend:
+    environment:
+      FRONTEND_REGISTRATION_ENABLED: ${FRONTEND_REGISTRATION_ENABLED:-false}
     build:
       context: .
       dockerfile: deploy/Dockerfile.frontend

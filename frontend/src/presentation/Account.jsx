@@ -16,7 +16,7 @@ export const profileFields = [
     { name: 'timezone', label: 'Часовой пояс', required: true, placeholder: 'Europe/Moscow' },
 ];
 
-export function AuthPage({ registration = false }) {
+export function AuthPage({ registration = false, registrationEnabled }) {
     const session = useSession();
     const mutation = useWrite();
     const navigate = useNavigate();
@@ -46,15 +46,17 @@ export function AuthPage({ registration = false }) {
                 submit={submit}
                 label={registration ? 'Создать аккаунт' : 'Войти'}
             />
-            <p>
-                <Link to={registration ? '/login' : '/register'}>
-                    {registration ? 'Уже есть аккаунт' : 'Зарегистрироваться'}
-                </Link>
-            </p>
+            {(registration || registrationEnabled) && (
+                <p>
+                    <Link to={registration ? '/login' : '/register'}>
+                        {registration ? 'Уже есть аккаунт' : 'Зарегистрироваться'}
+                    </Link>
+                </p>
+            )}
         </section>
     );
 }
-AuthPage.propTypes = { registration: PropTypes.bool };
+AuthPage.propTypes = { registration: PropTypes.bool, registrationEnabled: PropTypes.bool };
 
 export function Profile({ user }) {
     const [editing, setEditing] = useState(false);

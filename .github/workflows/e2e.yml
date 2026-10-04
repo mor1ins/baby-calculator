@@ -17,6 +17,9 @@ jobs:
         with:
           node-version: '24'
       - run: docker compose up --build -d
+        env:
+          BABY_REGISTRATION_ENABLED: "true"
+          FRONTEND_REGISTRATION_ENABLED: "true"
       - run: npm ci && npx playwright install --with-deps chromium && npm test
         working-directory: tests
       - if: failure()

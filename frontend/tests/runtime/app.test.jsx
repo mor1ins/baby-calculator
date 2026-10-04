@@ -8,11 +8,11 @@ import { Providers } from '../../src/composition/Providers.jsx';
 import { App } from '../../src/presentation/App.jsx';
 import { deferred, jsonResponse, member, session } from './support.js';
 
-function mount(runtime, path = '/') {
+function mount(runtime, path = '/', registrationEnabled = false) {
     return render(
         <Providers runtime={runtime}>
             <MemoryRouter initialEntries={[path]}>
-                <App />
+                <App registrationEnabled={registrationEnabled} />
             </MemoryRouter>
         </Providers>,
     );
@@ -70,4 +70,17 @@ it('handles unknown paths without querying private data', () => {
     mount(createRuntime({ transport }), '/missing');
     expect(screen.getByRole('heading', { name: 'Страница не найдена' })).toBeInTheDocument();
     expect(transport).not.toHaveBeenCalled();
+});
+
+it.each([false, true])('controls registration links and direct routes: %s', async (enabled) => {
+    const runtime = createRuntime({ repository: { read: async () => session() } });
+    const view = mount(runtime, '/login', enabled);
+    await screen.findByRole('button', { name: 'Войти', exact: true });
+    expect(Boolean(screen.queryByRole('link', { name: 'Зарегистрироваться' }))).toBe(enabled);
+    view.unmount();
+    mount(runtime, '/register', enabled);
+    expect(
+        await screen.findByRole('button', { name: enabled ? 'Создать аккаунт' : 'Войти', exact: true }),
+    ).toBeInTheDocument();
+    expect(Boolean(screen.queryByLabelText('Ваше имя'))).toBe(enabled);
 });
