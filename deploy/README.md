@@ -59,6 +59,16 @@ GitHub проверяет source commit до публикации образов
 
 Ручной возврат приложения: в каталоге окружения скопировать `previous.env` в `candidate.env` и запустить `bash release.sh dev` (или prod). Это не восстановление данных и не downgrade БД. Миграции должны сохранять совместимость с предыдущим приложением. Текущая readiness проверяет точную ревизию: если предыдущий образ ее не поддерживает, откат потребует отдельного совместимого релиза; скрипт сообщит ошибку проверки, а не успех. Автоматический downgrade и резервные копии в прототипе не реализуются.
 
+Создание обычного пользователя при закрытой регистрации (пароль вводится скрыто по запросу):
+
+```sh
+cd /srv/baby/prod
+docker compose -p baby-prod --env-file .env --env-file current.env -f compose.yaml exec backend \
+  .venv/bin/python create_user.py --email parent@example.com --name 'Имя' --timezone Europe/Moscow
+```
+
+Скрипт атомарно создаёт пользователя с ролью `user` и пустой дневник. Проверяет email, имя, пароль и часовой пояс; повторный email завершает команду ошибкой без изменения существующей учётной записи. Для автоматизации есть `--password-stdin` (использовать `exec -T`), пароль не передаётся аргументом команды и не печатается. Скрипт не включает публичную регистрацию.
+
 Создание admin на VPS: `docker compose -p baby-dev --env-file .env --env-file current.env -f compose.yaml exec backend .venv/bin/python create_admin.py --email admin@example.com`. Для prod заменить имя проекта. Прямое создание через БД не дает роль user автоматически.
 
 При обновлении не удалять volumes. При проблемах смотреть `docker compose … ps`, `logs --tail=100 backend` и `/ready`; не публиковать строки соединения и содержимое cookie/паролей в отчетах.

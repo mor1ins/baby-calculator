@@ -4,12 +4,12 @@ setup:
 run:
 	uv run --locked uvicorn service.bootstrap:create_app --factory --host 127.0.0.1 --port 8000
 format:
-	uv run --locked isort service tests migrations ../deploy/create_admin.py
+	uv run --locked isort service tests migrations ../deploy/create_admin.py ../deploy/create_user.py
 lint:
-	uv run --locked isort --check-only service tests migrations ../deploy/create_admin.py
-	uv run --locked flake8 service tests migrations ../deploy/create_admin.py
-	uv run --locked mypy service tests migrations ../deploy/create_admin.py
-	uv run --locked pylint service tests migrations ../deploy/create_admin.py
+	uv run --locked isort --check-only service tests migrations ../deploy/create_admin.py ../deploy/create_user.py
+	uv run --locked flake8 service tests migrations ../deploy/create_admin.py ../deploy/create_user.py
+	uv run --locked mypy service tests migrations ../deploy/create_admin.py ../deploy/create_user.py
+	uv run --locked pylint service tests migrations ../deploy/create_admin.py ../deploy/create_user.py
 	uv run --locked lint-imports
 test:
 	uv run --locked pytest -m "not integration"

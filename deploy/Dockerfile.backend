@@ -5,7 +5,7 @@ COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --locked --no-dev
 COPY backend/ ./
 COPY api/ /app/api/
-COPY deploy/create_admin.py ./create_admin.py
+COPY deploy/create_admin.py deploy/create_user.py ./
 RUN useradd --uid 10001 --create-home baby
 USER baby
 EXPOSE 8000
