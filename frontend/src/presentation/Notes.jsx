@@ -2,7 +2,9 @@ import PropTypes from 'prop-types';
 import { useState } from 'react';
 
 import { ActionButton, Form } from './Forms.jsx';
+import { newId } from './identifiers.js';
 import { intervalNames } from './labels.js';
+import { Sheet } from './Sheet.jsx';
 import { clockTime } from './time.js';
 import { useWrite } from './useApi.js';
 
@@ -10,7 +12,7 @@ export function Note({ interval, readOnly = false }) {
     const [editing, setEditing] = useState(false);
     const mutation = useWrite();
     const comment = interval.comment;
-    const initial = comment || { id: crypto.randomUUID(), text: '', version: 0 };
+    const initial = comment || { id: newId(), text: '', version: 0 };
     if (readOnly) return comment ? <p className="note">{comment.text}</p> : null;
     return (
         <div>
@@ -19,33 +21,35 @@ export function Note({ interval, readOnly = false }) {
                 {noteLabel(editing, comment)}
             </button>
             {editing && (
-                <Form
-                    fields={[{ name: 'text', label: 'Заметка', required: true, maxLength: 1000 }]}
-                    initial={initial}
-                    submit={async ({ text }) => {
-                        await mutation.mutateAsync({
-                            action: 'saveComment',
-                            key: initial.id,
-                            version: initial.version,
-                            values: { text, target_id: interval.id },
-                        });
-                        setEditing(false);
-                    }}
-                />
-            )}
-            {editing && comment && (
-                <ActionButton
-                    action={async () => {
-                        await mutation.mutateAsync({
-                            action: 'deleteComment',
-                            key: comment.id,
-                            version: comment.version,
-                        });
-                        setEditing(false);
-                    }}
-                >
-                    Удалить заметку
-                </ActionButton>
+                <Sheet title="Заметка к интервалу" close={() => setEditing(false)}>
+                    <Form
+                        fields={[{ name: 'text', label: 'Заметка', required: true, maxLength: 1000 }]}
+                        initial={initial}
+                        submit={async ({ text }) => {
+                            await mutation.mutateAsync({
+                                action: 'saveComment',
+                                key: initial.id,
+                                version: initial.version,
+                                values: { text, target_id: interval.id },
+                            });
+                            setEditing(false);
+                        }}
+                    />
+                    {comment && (
+                        <ActionButton
+                            action={async () => {
+                                await mutation.mutateAsync({
+                                    action: 'deleteComment',
+                                    key: comment.id,
+                                    version: comment.version,
+                                });
+                                setEditing(false);
+                            }}
+                        >
+                            Удалить заметку
+                        </ActionButton>
+                    )}
+                </Sheet>
             )}
         </div>
     );

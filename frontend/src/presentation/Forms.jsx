@@ -93,7 +93,7 @@ export function Loading({ query, children }) {
 }
 Loading.propTypes = { query: PropTypes.object.isRequired, children: PropTypes.node };
 
-export function ActionButton({ action, children, confirm }) {
+export function ActionButton({ action, children, confirm, className }) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
     const run = async () => {
@@ -110,7 +110,7 @@ export function ActionButton({ action, children, confirm }) {
     };
     return (
         <>
-            <button type="button" onClick={run} disabled={busy}>
+            <button type="button" className={className} onClick={run} disabled={busy}>
                 {busy ? 'Подождите…' : children}
             </button>
             <ErrorMessage error={error} />
@@ -121,6 +121,7 @@ ActionButton.propTypes = {
     action: PropTypes.func.isRequired,
     children: PropTypes.node.isRequired,
     confirm: PropTypes.string,
+    className: PropTypes.string,
 };
 
 export function confirmedVersion(original, current) {

@@ -45,11 +45,21 @@ it('retries only applying today after a saved template and day version conflict'
         </Providers>,
     );
     await userEvent.click(await screen.findByRole('button', { name: 'Изменить', exact: true }));
+    const firstDuration = screen.getByLabelText('Бодрствование 1');
+    expect(firstDuration).toHaveValue('13:40');
+    await userEvent.clear(firstDuration);
+    await userEvent.type(firstDuration, '0:00');
+    expect(firstDuration).toBeInvalid();
+    await userEvent.clear(firstDuration);
+    await userEvent.type(firstDuration, '12:30');
+    expect(firstDuration).toBeValid();
     await userEvent.selectOptions(screen.getByLabelText('Применение изменений'), 'today');
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить', exact: true }));
     expect(await screen.findByText('График сохранён, но не применён к сегодняшнему дню.')).toBeInTheDocument();
     vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
     await userEvent.click(screen.getByRole('button', { name: 'Применить к сегодня' }));
-    expect(execute.mock.calls.filter(([command]) => command.action === 'updateSchedule')).toHaveLength(1);
+    const updates = execute.mock.calls.filter(([command]) => command.action === 'updateSchedule');
+    expect(updates).toHaveLength(1);
+    expect(updates[0][0].values.segments[0].duration_minutes).toBe(750);
     expect(execute.mock.calls.filter(([command]) => command.action === 'setSchedule')).toHaveLength(2);
 });

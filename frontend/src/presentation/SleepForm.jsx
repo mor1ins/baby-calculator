@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 
 import { ActionButton, confirmedVersion, Form } from './Forms.jsx';
+import { Sheet } from './Sheet.jsx';
 import { absoluteTime, inputTime } from './time.js';
 import { useWrite } from './useApi.js';
 
@@ -45,8 +46,7 @@ export function SleepForm({ sleep, day, close }) {
         close();
     };
     return (
-        <section className="card">
-            <h2>{sleep ? 'Исправить сон' : 'Записать сон'}</h2>
+        <Sheet title={sleep ? 'Исправить сон' : 'Записать сон'} close={close}>
             <p>Время: {zone}. Бодрствование рассчитается автоматически.</p>
             <Form fields={fields} initial={initial} submit={submit} />
             <div className="actions">
@@ -69,7 +69,7 @@ export function SleepForm({ sleep, day, close }) {
                     </ActionButton>
                 )}
             </div>
-        </section>
+        </Sheet>
     );
 }
 SleepForm.propTypes = { sleep: PropTypes.object, day: PropTypes.object.isRequired, close: PropTypes.func.isRequired };

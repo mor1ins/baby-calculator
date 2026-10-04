@@ -29,7 +29,7 @@ export function SessionState() {
                 Сохраняйте историю сна в своём аккаунте. <Link to="/login">Войти</Link>
             </p>
         );
-    return <p>Здравствуйте, {session.data.user.name}. Ваш дневник подключён.</p>;
+    return <p className="sr-only">Здравствуйте, {session.data.user.name}. Ваш дневник подключён.</p>;
 }
 
 function accessMessage(error, user) {

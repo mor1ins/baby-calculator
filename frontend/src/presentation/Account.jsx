@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { ActionButton, confirmedVersion, Form } from './Forms.jsx';
+import { Icon } from './Icon.jsx';
+import { Sheet } from './Sheet.jsx';
 import { useSession, useWrite } from './useApi.js';
 
 const identityFields = [
@@ -11,7 +13,7 @@ const identityFields = [
 ];
 export const profileFields = [
     { name: 'name', label: 'Ваше имя', required: true, maxLength: 80, autoComplete: 'given-name' },
-    { name: 'timezone', label: 'Часовой пояс IANA', required: true, placeholder: 'Europe/Moscow' },
+    { name: 'timezone', label: 'Часовой пояс', required: true, placeholder: 'Europe/Moscow' },
 ];
 
 export function AuthPage({ registration = false }) {
@@ -28,7 +30,15 @@ export function AuthPage({ registration = false }) {
     };
     if (!session.data && !session.isPending) return <p>Обновите сессию кнопкой «Повторить» выше перед входом.</p>;
     return (
-        <section className="card">
+        <section className="auth-form">
+            <div className="auth-art">
+                <Icon name="moon" />
+                <p>
+                    Маленькие заметки о сне.
+                    <br />
+                    Больше спокойствия каждый день.
+                </p>
+            </div>
             <Form
                 key={String(registration)}
                 fields={fields}
@@ -47,6 +57,7 @@ export function AuthPage({ registration = false }) {
 AuthPage.propTypes = { registration: PropTypes.bool };
 
 export function Profile({ user }) {
+    const [editing, setEditing] = useState(false);
     const [baseline, setBaseline] = useState(user.version);
     const mutation = useWrite();
     const navigate = useNavigate();
@@ -57,37 +68,68 @@ export function Profile({ user }) {
             values,
         });
         setBaseline(result.version);
+        setEditing(false);
     };
     return (
-        <section className="card">
-            <p>{user.email}</p>
-            {user.roles.includes('user') && <Form fields={profileFields} initial={user} submit={save} />}
-            {user.default_schedule_id && (
+        <section className="profile-page">
+            <div className="profile-hero">
+                <span className="avatar">{user.name.slice(0, 1)}</span>
+                <h2>{user.name}</h2>
+                <p className="muted">{user.email}</p>
+            </div>
+            <div className="card">
+                {user.roles.includes('user') && (
+                    <>
+                        <button type="button" className="settings-row" onClick={() => setEditing(true)}>
+                            <Icon name="user" />
+                            <span>
+                                Личные данные<small>{user.name}</small>
+                            </span>
+                            <Icon name="next" />
+                        </button>
+                        <button type="button" className="settings-row" onClick={() => setEditing(true)}>
+                            <Icon name="clock" />
+                            <span>
+                                Часовой пояс<small>{user.timezone}</small>
+                            </span>
+                            <Icon name="next" />
+                        </button>
+                        {editing && (
+                            <Sheet title="Настройки дневника" close={() => setEditing(false)}>
+                                <Form fields={profileFields} initial={user} submit={save} />
+                            </Sheet>
+                        )}
+                    </>
+                )}
+                {user.default_schedule_id && (
+                    <ActionButton
+                        className="settings-row"
+                        action={() =>
+                            mutation.mutateAsync({
+                                action: 'profile',
+                                version: user.version,
+                                values: { default_schedule_id: null },
+                            })
+                        }
+                    >
+                        Сбросить график по умолчанию
+                    </ActionButton>
+                )}
+                {user.roles.includes('admin') && (
+                    <p>
+                        <Link to="/admin">Пользователи и просмотр дневников</Link>
+                    </p>
+                )}
                 <ActionButton
-                    action={() =>
-                        mutation.mutateAsync({
-                            action: 'profile',
-                            version: user.version,
-                            values: { default_schedule_id: null },
-                        })
-                    }
+                    className="settings-row"
+                    action={async () => {
+                        await mutation.mutateAsync({ action: 'logout' });
+                        navigate('/login');
+                    }}
                 >
-                    Сбросить график по умолчанию
+                    Выйти
                 </ActionButton>
-            )}
-            {user.roles.includes('admin') && (
-                <p>
-                    <Link to="/admin">Пользователи и просмотр дневников</Link>
-                </p>
-            )}
-            <ActionButton
-                action={async () => {
-                    await mutation.mutateAsync({ action: 'logout' });
-                    navigate('/login');
-                }}
-            >
-                Выйти
-            </ActionButton>
+            </div>
         </section>
     );
 }

@@ -2,13 +2,14 @@ import PropTypes from 'prop-types';
 import { useState } from 'react';
 
 import { ActionButton } from './Forms.jsx';
+import { newId } from './identifiers.js';
 import { useWrite } from './useApi.js';
 
 export function NightEvents({ sleep, zone, readOnly }) {
     const mutation = useWrite();
     const [pending, setPending] = useState(null);
     const add = async () => {
-        const event = pending || { id: crypto.randomUUID(), occurred_at: new Date().toISOString() };
+        const event = pending || { id: newId(), occurred_at: new Date().toISOString() };
         setPending(event);
         await mutation.mutateAsync({
             action: 'addEvent',

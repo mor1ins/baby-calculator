@@ -6,14 +6,15 @@ import { AuthPage, Profile } from './Account.jsx';
 import { AdminDiary, AdminUsers } from './Admin.jsx';
 import { DayPage } from './Day.jsx';
 import { History } from './History.jsx';
+import { Icon } from './Icon.jsx';
 import { Schedules } from './Schedules.jsx';
 import { SessionState } from './SessionState.jsx';
 import { useSession } from './useApi.js';
 
 const sections = [
     { path: '/', title: 'Сегодня', description: 'Сон, бодрствование и спокойный ритм вашего дня.' },
-    { path: '/schedules', title: 'Мои графики', description: 'Разные планы для обычных и особенных дней.' },
     { path: '/history', title: 'История', description: 'Дневник, к которому можно вернуться.' },
+    { path: '/schedules', title: 'Мои графики', description: 'Разные планы для обычных и особенных дней.' },
     { path: '/profile', title: 'Профиль', description: 'Ваш аккаунт и настройки дневника.' },
 ];
 
@@ -29,13 +30,12 @@ function Page({ title, description, section }) {
     return (
         <>
             <header className="page-header">
-                <p className="eyebrow">МАЛЕНЬКИМИ ШАГАМИ, В СВОЁМ РИТМЕ</p>
                 <h1 ref={heading} tabIndex={-1}>
                     {title}
                 </h1>
-                <p>{description}</p>
+                {section !== '/' && <p className="muted">{description}</p>}
             </header>
-            <section className="card" aria-label="Подключение дневника">
+            <section className="session-state" aria-label="Подключение дневника">
                 <SessionState />
             </section>
             {section === 'login' && <AuthPage />}
@@ -58,9 +58,14 @@ export function App() {
             </a>
             <header className="brand">
                 <Link to="/" aria-label="Тише — на главную">
-                    ☾ <span>тише</span>
+                    <span className="brand-mark" aria-hidden="true" />{' '}
+                    <span>
+                        тише<span className="brand-period">.</span>
+                    </span>
                 </Link>
-                <span className="brand-note">дневник сна малыша</span>
+                <Link className="avatar" to="/profile" aria-label="Открыть профиль">
+                    <Icon name="user" />
+                </Link>
             </header>
             <main id="content">
                 <Routes>
@@ -100,8 +105,15 @@ export function App() {
             </main>
             <nav aria-label="Основная навигация">
                 {sections.map(({ path, title }) => (
-                    <NavLink key={path} to={path} end={path === '/'}>
-                        {title}
+                    <NavLink aria-label={title} key={path} to={path} end={path === '/'}>
+                        <Icon
+                            name={
+                                { '/': 'sun', '/history': 'calendar', '/schedules': 'sliders', '/profile': 'user' }[
+                                    path
+                                ]
+                            }
+                        />
+                        <span>{title === 'Мои графики' ? 'Графики' : title}</span>
                     </NavLink>
                 ))}
             </nav>
