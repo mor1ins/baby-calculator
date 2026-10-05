@@ -20,7 +20,7 @@ def test_session_schedule_and_diary(client: TestClient) -> None:
                                               "ends_night": True})
     day = client.get("/api/v1/days/2026-10-02").json()
     assert day["previous_night"]["id"] == night["id"]
-    assert day["schedule"] is None
+    assert day["schedule"]["source_id"] == plan["id"]
     day = write(client, "PUT", "/days/2026-10-02/schedule", {"schedule_id": plan["id"]}, day["version"])
     assert day["schedule"]["name"] == "Обычный"
     nap = write(client, "POST", "/sleeps", {"day": "2026-10-02", "kind": "nap",

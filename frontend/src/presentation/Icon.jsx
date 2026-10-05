@@ -11,6 +11,7 @@ const paths = {
     plus: 'M12 5v14M5 12h14',
     close: 'm6 6 12 12M6 18 18 6',
     next: 'm9 5 7 7-7 7',
+    more: 'M5 12h.01M12 12h.01M19 12h.01',
 };
 export function Icon({ name }) {
     return (

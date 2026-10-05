@@ -128,7 +128,8 @@ TimelineEntry.propTypes = {
     readOnly: PropTypes.bool,
 };
 
-function DayContent({ day, readOnly }) {
+function DayContent({ day, owner }) {
+    const readOnly = Boolean(owner);
     const [editing, setEditing] = useState(undefined);
     return (
         <>
@@ -153,22 +154,14 @@ function DayContent({ day, readOnly }) {
                     close={() => setEditing(undefined)}
                 />
             )}
-            {day.previous_night && (
-                <details className="previous-night">
-                    <summary>Предыдущая ночь · подъём {clockTime(day.previous_night.end, day.timezone)}</summary>
-                    <p>Подъём: {clockTime(day.previous_night.end, day.timezone)}</p>
-                    {!readOnly && (
-                        <button type="button" onClick={() => setEditing(day.previous_night)}>
-                            Исправить утреннюю границу
-                        </button>
-                    )}
-                </details>
-            )}
             <div className="section-head">
                 <h2>Линия дня</h2>
                 <span>Факт и прогноз</span>
             </div>
             <div className="timeline">
+                {day.previous_night && (
+                    <CompletedNight key={day.previous_night.id} day={day} owner={owner} edit={setEditing} />
+                )}
                 {day.timeline.map((entry, index) => (
                     <TimelineEntry
                         key={entry.id || `forecast-${index}`}
@@ -183,7 +176,21 @@ function DayContent({ day, readOnly }) {
         </>
     );
 }
-DayContent.propTypes = { day: PropTypes.object.isRequired, readOnly: PropTypes.bool };
+DayContent.propTypes = { day: PropTypes.object.isRequired, owner: PropTypes.string };
+
+function CompletedNight({ day, owner, edit }) {
+    const previous = useRead(
+        { action: owner ? 'adminDay' : 'day', key: day.previous_night.day, parent: owner },
+        { refetchInterval: 60000 },
+    );
+    const entry = previous.data?.timeline.find((item) => item.sleep_id === day.previous_night.id);
+    return (
+        <Loading query={previous}>
+            {entry && <TimelineEntry entry={entry} day={previous.data} edit={edit} readOnly={Boolean(owner)} />}
+        </Loading>
+    );
+}
+CompletedNight.propTypes = { ...DayContent.propTypes, edit: PropTypes.func.isRequired };
 
 export function DayPage({ user, owner }) {
     const [params, setParams] = useSearchParams();
@@ -227,9 +234,7 @@ export function DayPage({ user, owner }) {
                 </Sheet>
             )}
             {!owner && <PreviousNight user={user} select={setDate} />}
-            <Loading query={query}>
-                {query.data && <DayContent key={date} day={query.data} readOnly={Boolean(owner)} />}
-            </Loading>
+            <Loading query={query}>{query.data && <DayContent key={date} day={query.data} owner={owner} />}</Loading>
         </>
     );
 }
@@ -347,7 +352,7 @@ function DayActions({ day, readOnly, edit }) {
         </>
     );
 }
-DayActions.propTypes = { ...DayContent.propTypes, edit: PropTypes.func.isRequired };
+DayActions.propTypes = { day: PropTypes.object.isRequired, readOnly: PropTypes.bool, edit: PropTypes.func.isRequired };
 
 function IntervalStatus({ status }) {
     if (status === 'actual') return null;

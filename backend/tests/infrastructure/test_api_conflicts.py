@@ -78,3 +78,25 @@ def test_cycle_date_cannot_precede_its_morning(client: TestClient) -> None:
                            "start": "2026-10-03T04:00:00Z", "end": "2026-10-03T05:00:00Z", "ends_night": False})
     assert response.status_code == 422
     assert client.get("/api/v1/days/2026-10-02").json()["version"] == 0
+
+
+@pytest.mark.parametrize("with_morning", [False, True])
+def test_default_schedule_before_first_sleep(client: TestClient, with_morning: bool) -> None:
+    user = register(client)
+    if with_morning:
+        write(client, "POST", "/sleeps", {"day": "2026-10-01", "kind": "night",
+              "start": "2026-10-01T19:00:00Z", "end": "2026-10-02T04:00:00Z"})
+    plan = write(client, "POST", "/schedules", {"name": "Основной", "segments": [
+        {"kind": "awake", "duration_minutes": 800}, {"kind": "night", "duration_minutes": 600}]})
+    write(client, "PATCH", "/me", {"default_schedule_id": plan["id"]}, user["version"])
+    path = "/api/v1/days/2026-10-02"
+    day = client.get(path).json()
+    assert day["schedule"]["source_id"] == plan["id"]
+    assert client.get(path).json()["version"] == day["version"]
+    write(client, "PUT", "/days/2026-10-02/schedule", {"schedule_id": None}, day["version"])
+    assert client.get(path).json()["schedule"] is None
+    write(client, "POST", "/sleeps", {"day": "2026-10-03", "kind": "nap",
+          "start": "2026-10-03T07:00:00Z", "end": "2026-10-03T08:00:00Z"})
+    write(client, "PATCH", f'/schedules/{plan["id"]}', {"name": "Обновлённый"}, plan["version"])
+    assert client.get("/api/v1/days/2026-10-03").json()["schedule"]["name"] == "Основной"
+    assert client.get("/api/v1/days/2026-10-04").json()["schedule"]["name"] == "Обновлённый"

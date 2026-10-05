@@ -150,10 +150,10 @@ ScheduleEditor.propTypes = {
 
 export function Schedules({ user, owner }) {
     const query = useRead(owner ? { action: 'adminSchedules', parent: owner } : { action: 'schedules' });
-    const mutation = useWrite();
     const [editing, setEditing] = useState(undefined);
     return (
         <Loading query={query}>
+            <p className="muted">График «По умолчанию» автоматически применяется к новым дням.</p>
             {editing !== undefined && (
                 <ScheduleEditor
                     key={editing?.id || 'new'}
@@ -180,56 +180,7 @@ export function Schedules({ user, owner }) {
                         ))}
                     </div>
                     <ScheduleSummary segments={schedule.segments} />
-                    {!owner && (
-                        <div className="actions">
-                            <button type="button" onClick={() => setEditing(schedule)}>
-                                Изменить
-                            </button>
-                            <details className="schedule-menu">
-                                <summary>Ещё</summary>
-                                <div className="actions">
-                                    <ActionButton
-                                        action={() =>
-                                            mutation.mutateAsync({
-                                                action: 'createSchedule',
-                                                values: {
-                                                    name: `${schedule.name.slice(0, 70)} — копия`,
-                                                    segments: schedule.segments,
-                                                },
-                                            })
-                                        }
-                                    >
-                                        Копировать
-                                    </ActionButton>
-                                    <ActionButton
-                                        action={() =>
-                                            mutation.mutateAsync({
-                                                action: 'updateSchedule',
-                                                key: schedule.id,
-                                                version: schedule.version,
-                                                values: { archived: !schedule.archived },
-                                            })
-                                        }
-                                    >
-                                        {schedule.archived ? 'Вернуть из архива' : 'В архив'}
-                                    </ActionButton>
-                                </div>
-                            </details>
-                            {!schedule.archived && (
-                                <ActionButton
-                                    action={() =>
-                                        mutation.mutateAsync({
-                                            action: 'profile',
-                                            version: user.version,
-                                            values: { default_schedule_id: schedule.id },
-                                        })
-                                    }
-                                >
-                                    {user.default_schedule_id === schedule.id ? 'По умолчанию ✓' : 'По умолчанию'}
-                                </ActionButton>
-                            )}
-                        </div>
-                    )}
+                    {!owner && <ScheduleActions schedule={schedule} user={user} edit={() => setEditing(schedule)} />}
                 </section>
             ))}
             {!owner && (
@@ -241,6 +192,81 @@ export function Schedules({ user, owner }) {
     );
 }
 Schedules.propTypes = { user: PropTypes.object.isRequired, owner: PropTypes.string };
+
+function ScheduleActions({ schedule, user, edit }) {
+    const [open, setOpen] = useState(false);
+    const mutation = useWrite();
+    const run = async (action) => {
+        await mutation.mutateAsync(action);
+        setOpen(false);
+    };
+    return (
+        <div className="schedule-actions">
+            <button type="button" className="schedule-edit" onClick={edit}>
+                Изменить график
+            </button>
+            <button
+                type="button"
+                className="schedule-more"
+                aria-label={`Действия с графиком «${schedule.name}»`}
+                aria-haspopup="dialog"
+                onClick={() => setOpen(true)}
+            >
+                <Icon name="more" />
+            </button>
+            {!schedule.archived && user.default_schedule_id !== schedule.id && (
+                <ActionButton
+                    className="schedule-default"
+                    action={() =>
+                        run({
+                            action: 'profile',
+                            version: user.version,
+                            values: { default_schedule_id: schedule.id },
+                        })
+                    }
+                >
+                    Сделать по умолчанию
+                </ActionButton>
+            )}
+            {open && (
+                <Sheet title={schedule.name} close={() => setOpen(false)}>
+                    <div className="schedule-options">
+                        <ActionButton
+                            action={() =>
+                                run({
+                                    action: 'createSchedule',
+                                    values: {
+                                        name: `${schedule.name.slice(0, 70)} — копия`,
+                                        segments: schedule.segments,
+                                    },
+                                })
+                            }
+                        >
+                            Копировать график
+                        </ActionButton>
+                        <ActionButton
+                            action={() =>
+                                run({
+                                    action: 'updateSchedule',
+                                    key: schedule.id,
+                                    version: schedule.version,
+                                    values: { archived: !schedule.archived },
+                                })
+                            }
+                        >
+                            {schedule.archived ? 'Вернуть из архива' : 'В архив'}
+                        </ActionButton>
+                    </div>
+                </Sheet>
+            )}
+        </div>
+    );
+}
+ScheduleActions.propTypes = {
+    schedule: PropTypes.object.isRequired,
+    user: PropTypes.object.isRequired,
+    edit: PropTypes.func.isRequired,
+};
 
 function scheduleName(day) {
     return day?.schedule?.name || 'без графика';

@@ -18,9 +18,10 @@ test('mobile registration, schedule, sleep, comment, history and logout persist'
     await page.getByLabel('Название графика').fill('Обычный день');
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Обычный день', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'По умолчанию', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'По умолчанию ✓' })).toBeVisible();
+    await page.getByRole('button', { name: 'Сделать по умолчанию', exact: true }).click();
+    await expect(page.getByText('По умолчанию', { exact: true })).toBeVisible();
     await page.getByRole('link', { name: 'Сегодня', exact: true }).click();
+    await expect(page.getByRole('button', { name: /График дня.*Обычный день/ })).toBeVisible();
     await page.getByRole('button', { name: 'Записать сон вручную' }).click();
     await page.getByLabel('День цикла', { exact: true }).fill(previousDay);
     await page.getByLabel('Вид сна').selectOption('night');
@@ -30,12 +31,12 @@ test('mobile registration, schedule, sleep, comment, history and logout persist'
     await expect(page.getByRole('heading', { name: 'Записать сон' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Выбрать дату' }).click();
     await page.getByRole('textbox', { name: 'День дневника', exact: true }).fill(sleepDay);
-    await expect(page.getByText(/Предыдущая ночь · подъём/)).toBeVisible();
+    await expect(page.locator('.timeline-entry.actual.night')).toContainText('21:00 — 06:30');
     await page.getByRole('button', { name: 'Записать сон вручную' }).click();
     await page.getByLabel('Начало сна').fill(`${sleepDay}T10:50`);
     await page.getByLabel('Конец сна (пусто — ещё спит)').fill(`${sleepDay}T12:10`);
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-    await page.getByRole('button', { name: 'Добавить заметку' }).first().click();
+    await page.locator('.timeline-entry.awake').first().getByRole('button', { name: 'Добавить заметку' }).click();
     await page.getByLabel('Заметка', { exact: true }).fill('Утро без спешки');
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
     await expect(page.getByText('Утро без спешки', { exact: true })).toBeVisible();

@@ -40,5 +40,21 @@ test('approved mobile composition, responsive layout and modal keyboard behavior
         await page.getByRole('link', { name, exact: true }).click();
         await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
         await page.screenshot({ path: `test-results/design-${file}.png`, fullPage: true });
+        if (file === 'schedules') {
+            const actions = page.getByRole('button', { name: `Действия с графиком «${plan.name}»` });
+            for (const width of [320, 390, 768]) {
+                await page.setViewportSize({ width, height: 844 });
+                const card = page.locator('.schedule-card');
+                const before = await card.boundingBox();
+                await actions.click();
+                await expect(page.getByRole('button', { name: 'Копировать график', exact: true })).toBeVisible();
+                expect((await card.boundingBox()).height).toBe(before.height);
+                expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+                await page.screenshot({ path: `test-results/schedule-actions-${width}.png` });
+                await page.keyboard.press('Escape');
+                await expect(actions).toBeFocused();
+            }
+            await page.setViewportSize({ width: 390, height: 844 });
+        }
     }
 });

@@ -93,8 +93,10 @@ class DaysRepository:
                WHERE d.diary_id=:id AND d.date=:date AND t.retired_at IS NULL""", id=diary["id"], date=day,
         )
         version = row["version"] + int(row["id"] in self.dirty - self.created) if row else 0
+        schedule = row["schedule_snapshot"] if row and row["schedule_initialized"] else await self.snapshot(
+            diary["id"], diary["default_schedule_id"])
         return {"date": day, "version": version, "timezone": zone,
-                "schedule": row["schedule_snapshot"] if row else None,
+                "schedule": schedule,
                 "previous_night": previous[-1] if previous else None,
                 "sleeps": [sleep for sleep in sleeps if sleep["day"] == day], "targets": targets,
                 "comments": comments}

@@ -125,12 +125,10 @@ nav a {
 }
 
 .brand-mark {
+    display: block;
+    flex-shrink: 0;
     width: 19px;
     height: 19px;
-    border: 2px solid var(--purple);
-    border-radius: 50%;
-    background: conic-gradient(var(--purple) 0deg 65deg, transparent 65deg 320deg, var(--purple) 320deg);
-    transform: rotate(-25deg);
 }
 
 .brand-period {
@@ -888,16 +886,52 @@ summary {
     background: #f5f2fc;
 }
 
-.schedule-card .actions {
+.schedule-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 10px;
     border-top: 1px solid var(--line);
-    padding-top: 6px;
+    margin-top: 18px;
+    padding-top: 16px;
 }
 
-.schedule-card .actions button {
-    background: none;
+.schedule-card .schedule-actions > button {
+    min-height: 44px;
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 14px;
+    border-radius: 12px;
+}
+
+.schedule-edit,
+.schedule-more {
+    background: white;
     color: var(--purple);
-    font-size: 12px;
-    padding: 6px;
+    border: 1px solid #d5cfea;
+}
+
+.schedule-more {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+}
+
+.schedule-default {
+    grid-column: 1 / -1;
+    background: #e9e3f7;
+    color: var(--purple);
+}
+
+.schedule-options {
+    display: grid;
+    gap: 12px;
+}
+
+.sheet .schedule-options button {
+    text-align: left;
+    background: #f5f2fc;
+    color: var(--purple);
 }
 
 .mini-plan {
@@ -1094,16 +1128,6 @@ summary {
     display: flex;
     align-items: center;
     gap: 12px;
-}
-
-.schedule-menu {
-    margin-left: auto;
-    font-size: 12px;
-    color: var(--purple);
-}
-
-.schedule-menu[open] {
-    flex-basis: 100%;
 }
 
 @media (width <= 359px) {
