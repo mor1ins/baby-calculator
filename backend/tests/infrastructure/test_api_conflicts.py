@@ -53,7 +53,7 @@ def test_sleep_day_move_and_comment_preservation(client: TestClient) -> None:
     register(client)
     sleep = write(client, "POST", "/sleeps", {"day": "2026-10-02", "kind": "night",
                   "start": "2026-10-03T00:10:00Z", "end": "2026-10-03T02:00:00Z", "ends_night": False})
-    moved = write(client, "PATCH", f'/sleeps/{sleep["id"]}', {"day": "2026-10-03"}, 1)
+    moved = write(client, "PATCH", f'/sleeps/{sleep["id"]}', {"day": "2026-10-03", "kind": "nap"}, 1)
     assert moved["day"] == "2026-10-03"
     assert not client.get("/api/v1/days/2026-10-02").json()["sleeps"]
 

@@ -42,7 +42,7 @@ invalid_cases = [
     ("UserStatusPatch", {"blocked": True}),
     ("SleepWrite", {**fixtures["sleep-create"], "kind": "awake"}),
     ("SleepWrite", {**fixtures["sleep-create"], "start": "2026-10-03T20:10:00"}),
-    ("SleepWrite", {**fixtures["sleep-create"], "ends_night": True}),
+    ("SleepWrite", {**fixtures["sleep-create"], "ends_night": "yes"}),
     ("SleepPatch", {}),
     ("CommentPut", {"target_id": "interval-1", "text": ""}),
     ("ScheduleSegment", {"kind": "nap", "duration_minutes": 0}),

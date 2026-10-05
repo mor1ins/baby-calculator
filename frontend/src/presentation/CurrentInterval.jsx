@@ -15,7 +15,7 @@ export function CurrentInterval({ day, active, start }) {
             action: 'updateSleep',
             key: active.id,
             version: active.version,
-            values: { end: new Date().toISOString(), ends_night: active.kind === 'night' },
+            values: { end: new Date().toISOString() },
         });
     return (
         <section className="hero" aria-label="Текущий промежуток">

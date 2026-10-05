@@ -225,7 +225,7 @@ paths:
                 $ref: '#/components/schemas/Sleep'
         default:
           $ref: '#/components/responses/Error'
-      description: 'Передать end для завершения; ends_night=true означает окончательный утренний подъем.
+      description: 'Передать end для завершения. Завершение ночного сна автоматически начинает новый день.
         Проверка объединенного состояния. Исправление пересчитывает затронутые дни; заметки/события сохраняют
         ID. Событие вне новых границ: 409 events_outside_sleep.'
       parameters:
@@ -896,31 +896,14 @@ components:
           - type: 'null'
         ends_night:
           type: boolean
+          deprecated: true
+          description: Совместимость со старыми клиентами. Сервер вычисляет значение по kind и end.
       required:
       - day
       - kind
       - start
       - end
-      - ends_night
-      description: day — дата цикла. ends_night=true только для завершенного ночного сна, после которого
-        наступил утренний подъем.
-      allOf:
-      - if:
-          properties:
-            kind:
-              const: nap
-        then:
-          properties:
-            ends_night:
-              const: false
-      - if:
-          properties:
-            end:
-              type: 'null'
-        then:
-          properties:
-            ends_night:
-              const: false
+      description: Дата цикла задаётся полем day. Завершённый ночной сон автоматически начинает следующий день; краткие пробуждения записываются ночными отметками.
     SleepPatch:
       type: object
       additionalProperties: false
@@ -945,6 +928,8 @@ components:
           - type: 'null'
         ends_night:
           type: boolean
+          deprecated: true
+          description: Совместимость со старыми клиентами. Сервер вычисляет значение по kind и end.
       required: []
       minProperties: 1
     SleepEvent:

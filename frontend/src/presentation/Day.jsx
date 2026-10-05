@@ -326,7 +326,6 @@ function DayActions({ day, readOnly, edit }) {
                 kind,
                 start: new Date().toISOString(),
                 end: null,
-                ends_night: false,
             },
         });
     const active = day.sleeps.find((sleep) => !sleep.end);

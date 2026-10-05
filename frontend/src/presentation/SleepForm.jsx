@@ -20,14 +20,6 @@ export function SleepForm({ sleep, day, close }) {
         },
         { name: 'start', label: 'Начало сна', type: 'datetime-local', required: true },
         { name: 'end', label: 'Конец сна (пусто — ещё спит)', type: 'datetime-local' },
-        {
-            name: 'ends_night',
-            label: 'Окончательное утреннее пробуждение',
-            options: [
-                ['no', 'Нет'],
-                ['yes', 'Да'],
-            ],
-        },
     ];
     const initial = sleepInputs(sleep, day);
     const current = currentSleep(day, sleep);
@@ -80,14 +72,12 @@ function sleepInputs(sleep, day) {
         kind: 'nap',
         start: new Date().toISOString(),
         end: null,
-        ends_night: false,
     };
     return {
         day: value.day,
         kind: value.kind,
         start: inputTime(value.start, day.timezone),
         end: value.end ? inputTime(value.end, day.timezone) : '',
-        ends_night: value.ends_night ? 'yes' : 'no',
     };
 }
 
@@ -100,6 +90,5 @@ function sleepPayload(values, zone) {
     const result = { ...values };
     if ('start' in values) result.start = absoluteTime(values.start, zone);
     if ('end' in values) result.end = values.end ? absoluteTime(values.end, zone) : null;
-    if ('ends_night' in values) result.ends_night = values.ends_night === 'yes';
     return result;
 }

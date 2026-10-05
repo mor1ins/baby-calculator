@@ -33,6 +33,7 @@ class SleepsRepository:
             check_version(current["version"], op.version)
         sleep = {**(current or {"id": uuid4(), "version": 1, "events": []}), **op.data}
         self._parse(sleep)
+        sleep["ends_night"] = sleep["kind"] == "night" and sleep["end"] is not None
         day = await self.days.ensure(diary, sleep["day"], initialize=True)
         sleep_times(sleep, op.now, self._clock_skew_tolerance_minutes)
         sleep_cycle(sleep, await self.days.sleeps(diary["id"]), day["timezone"])

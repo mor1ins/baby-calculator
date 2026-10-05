@@ -145,3 +145,36 @@ def test_readiness_database_unreachable(monkeypatch: pytest.MonkeyPatch) -> None
         assert response.json()["code"] == "unavailable"
         assert "private-value" not in response.text
         assert client.get("/health").status_code == 200
+
+
+@pytest.mark.parametrize("has_target", [False, True])
+def test_automatic_morning_repairs_legacy_night(database_url: str, migration_config: Config, has_target: bool) -> None:
+    command.upgrade(migration_config, "0003_target_move")
+    engine = create_engine(database_url)
+    sleep_id, target_id, comment_id = uuid4(), uuid4(), uuid4()
+    with engine.begin() as connection:
+        diary_id, day_id = diary(connection)
+        execute(connection, """INSERT INTO sleep_intervals(id,diary_id,day_id,kind,start_at,end_at)
+            VALUES (:id,:diary,:day,'night','2026-10-03 18:30+00','2026-10-04 04:07+00')""",
+                id=sleep_id, diary=diary_id, day=day_id)
+        if has_target:
+            execute(connection, """INSERT INTO interval_targets(id,diary_id,day_id,kind,left_sleep_id)
+                VALUES (:id,:diary,:day,'awake',:sleep)""", id=target_id, diary=diary_id, day=day_id, sleep=sleep_id)
+            execute(connection, """INSERT INTO interval_comments(id,diary_id,day_id,target_id,text)
+                VALUES (:id,:diary,:day,:target,'Утренняя заметка')""",
+                    id=comment_id, diary=diary_id, day=day_id, target=target_id)
+    command.upgrade(migration_config, "head")
+    with engine.connect() as connection:
+        assert connection.scalar(text("SELECT ends_night FROM sleep_intervals WHERE id=:id"), {"id": sleep_id})
+        target = connection.execute(text("""SELECT t.id,d.date FROM interval_targets t
+            JOIN diary_days d ON d.id=t.day_id WHERE t.left_sleep_id=:id AND t.retired_at IS NULL"""),
+                                    {"id": sleep_id}).one()
+        assert str(target.date) == "2026-10-04"
+        if has_target:
+            assert target.id == target_id
+            note = connection.execute(text("""SELECT c.target_id,c.text,d.date FROM interval_comments c
+                JOIN diary_days d ON d.id=c.day_id WHERE c.id=:id"""), {"id": comment_id}).one()
+            assert note.target_id == target_id
+            assert note.text == "Утренняя заметка"
+            assert str(note.date) == "2026-10-04"
+    engine.dispose()

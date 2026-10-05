@@ -78,7 +78,7 @@ def test_configured_clock_tolerance(client: TestClient, sql_container: Container
     })))
     register(client)
     start = "2026-10-04T12:00:00Z"
-    payload = {"day": "2026-10-04", "kind": "night", "start": start, "end": None, "ends_night": False}
+    payload = {"day": "2026-10-03", "kind": "night", "start": start, "end": None, "ends_night": False}
     sleep = write(client, "POST", "/sleeps", payload)
     path = f'/api/v1/sleeps/{sleep["id"]}'
     for seconds in (0.002138, 179, 180, 1199, 1200):
@@ -93,3 +93,21 @@ def test_configured_clock_tolerance(client: TestClient, sql_container: Container
         if accepted:
             write(client, "DELETE", f'/sleeps/{sleep["id"]}/events/{event.json()["id"]}', {})
             sleep["version"] += 2
+
+
+@pytest.mark.parametrize("legacy_flag", [None, False])
+def test_manual_night_end_starts_next_day_without_marker(client: TestClient, legacy_flag: bool | None) -> None:
+    register(client)
+    sleep = night(client)
+    payload: dict[str, Any] = {"end": "2026-10-03T04:07:00Z"}
+    if legacy_flag is not None:
+        payload["ends_night"] = legacy_flag
+    closed = write(client, "PATCH", f'/sleeps/{sleep["id"]}', payload, 1)
+    assert closed["ends_night"] is True
+    day = client.get("/api/v1/days/2026-10-03").json()
+    assert day["previous_night"]["id"] == sleep["id"]
+    assert "missing_morning" not in day["issues"]
+    assert day["timeline"][0]["start"] == payload["end"]
+    reopened = write(client, "PATCH", f'/sleeps/{sleep["id"]}', {"end": None}, closed["version"])
+    assert reopened["ends_night"] is False
+    assert client.get("/api/v1/days/2026-10-03").json()["previous_night"] is None
