@@ -13,6 +13,19 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const eslint = new ESLint({ cwd: root });
 
 const violations = [
+    [
+        'inline styles',
+        'src/presentation/Inline.jsx',
+        'export const Inline = () => <div style={{ color: "red" }} />;',
+        'no-restricted-syntax',
+    ],
+    [
+        'SVG paint',
+        'src/presentation/Paint.jsx',
+        'export const Paint = () => <svg stroke="red" />;',
+        'no-restricted-syntax',
+    ],
+    ['DOM styling', 'src/presentation/paint.js', 'document.body.style.color = "red";', 'no-restricted-syntax'],
     ['unused variable', 'src/domain/example.js', 'const unused = 1;', 'no-unused-vars'],
     ['direct HTTP', 'src/presentation/example.js', "fetch('/api');", 'no-restricted-globals'],
     ['HTTP through window', 'src/presentation/example.js', "window.fetch('/api');", 'no-restricted-properties'],

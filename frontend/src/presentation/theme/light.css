@@ -1,0 +1,51 @@
+:root,
+:root[data-theme='light'] {
+    color-scheme: light;
+
+    --accent: #6554ba;
+    --surface-page: #f8f7f3;
+    --text-primary: #252945;
+    --text-muted: #6b6e7d;
+    --border-default: #e6e5ec;
+    --surface-accent: #eeebfa;
+    --awake: #f4e4a7;
+    --canvas: #eeede9;
+    --surface-card: white;
+    --on-primary: white;
+    --button-primary: #6554ba;
+    --avatar-background: #ece7f3;
+    --avatar-border: #dbd6ed;
+    --navigation-background: #fdfcf9f5;
+    --input-border: #d5d2df;
+    --error-text: #9b2541;
+    --error-background: #fceef1;
+    --notice-background: #eeebfa80;
+    --hero-background: #252945;
+    --hero-text: #fff;
+    --hero-heading: #e7e4f5;
+    --live-glow: #f4e4a715;
+    --hero-label: #d9d7e8;
+    --hero-detail: #c8c6d9;
+    --hero-art-border: #8c86ab75;
+    --hero-track: #ffffff20;
+    --hero-progress-label: #cdcbdb;
+    --on-awake: #252945;
+    --hero-link: #eee9ff;
+    --timeline-line: #d7d4e4;
+    --awake-border: #d8c375;
+    --forecast-line: #cac6d9;
+    --note-text: #5e5484;
+    --night-border: #dad4ed;
+    --night-background: #f0edf9;
+    --sheet-shadow-color: #15132335;
+    --backdrop: #24253e70;
+    --selected-border: #b8aedb;
+    --selected-background: #f5f2fc;
+    --button-border: #d5cfea;
+    --default-background: #e9e3f7;
+    --nap: #b2a5e0;
+    --night: #252945;
+    --outline-border: #cbc5df;
+    --selection-background: #252945;
+    --selection-text: white;
+}

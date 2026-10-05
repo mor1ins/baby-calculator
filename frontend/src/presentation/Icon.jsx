@@ -15,16 +15,7 @@ const paths = {
 };
 export function Icon({ name }) {
     return (
-        <svg
-            className="icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
+        <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
             <path d={paths[name]} />
         </svg>
     );

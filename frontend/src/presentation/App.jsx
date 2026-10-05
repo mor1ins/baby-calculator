@@ -59,7 +59,7 @@ export function App({ registrationEnabled = false }) {
             </a>
             <header className="brand">
                 <Link to="/" aria-label="Тише — на главную">
-                    <img className="brand-mark" src="/tishe.svg" alt="" width="19" height="19" />{' '}
+                    <span className="brand-mark" aria-hidden="true" />{' '}
                     <span>
                         тише<span className="brand-period">.</span>
                     </span>

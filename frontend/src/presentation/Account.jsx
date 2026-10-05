@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ActionButton, confirmedVersion, Form } from './Forms.jsx';
 import { Icon } from './Icon.jsx';
 import { Sheet } from './Sheet.jsx';
+import { ThemeSelector } from './theme/ThemeSelector.jsx';
 import { useSession, useWrite } from './useApi.js';
 
 const identityFields = [
@@ -81,6 +82,7 @@ export function Profile({ user }) {
                 <p className="muted">{user.email}</p>
             </div>
             <div className="card">
+                <ThemeSelector />
                 {user.roles.includes('user') && (
                     <>
                         <button type="button" className="settings-row" onClick={() => setEditing(true)}>

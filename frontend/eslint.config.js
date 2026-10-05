@@ -43,6 +43,21 @@ export default [
         rules: {
             'no-restricted-syntax': [
                 'error',
+                {
+                    selector:
+                        'JSXAttribute[name.name=/^(style|fill|stroke|strokeWidth|strokeLinecap|strokeLinejoin|width|height|color|bgcolor)$/]',
+                    message: 'Visual properties belong exclusively in CSS.',
+                },
+                { selector: 'JSXOpeningElement[name.name="style"]', message: 'Use an external CSS stylesheet.' },
+                {
+                    selector: 'MemberExpression[property.name=/^(style|cssText|insertRule|setProperty)$/]',
+                    message: 'Do not inject styles from JavaScript.',
+                },
+                {
+                    selector:
+                        'CallExpression[callee.property.name="setAttribute"][arguments.0.value=/^(style|fill|stroke|width|height|color)$/]',
+                    message: 'Visual attributes belong in CSS.',
+                },
                 { selector: 'ImportExpression', message: 'Dynamic imports require an explicit architecture decision.' },
                 { selector: 'CallExpression[callee.name="require"]', message: 'Use static ESM imports.' },
             ],

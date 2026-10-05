@@ -174,11 +174,7 @@ export function Schedules({ user, owner }) {
                         {schedule.name} {schedule.archived && '· в архиве'}
                     </h2>
                     {user.default_schedule_id === schedule.id && <span className="badge">По умолчанию</span>}
-                    <div className="mini-plan" aria-hidden="true">
-                        {schedule.segments.map((part, index) => (
-                            <span key={index} className={part.kind} style={{ flex: part.duration_minutes }} />
-                        ))}
-                    </div>
+                    <SchedulePreview segments={schedule.segments} />
                     <ScheduleSummary segments={schedule.segments} />
                     {!owner && <ScheduleActions schedule={schedule} user={user} edit={() => setEditing(schedule)} />}
                 </section>
@@ -313,3 +309,18 @@ DurationInput.propTypes = {
     minutes: PropTypes.number.isRequired,
     change: PropTypes.func.isRequired,
 };
+
+function SchedulePreview({ segments }) {
+    const total = segments.reduce((sum, part) => sum + part.duration_minutes, 0);
+    let position = 0;
+    return (
+        <svg className="mini-plan" viewBox={`0 0 ${total} 24`} preserveAspectRatio="none" aria-hidden="true">
+            {segments.map((part, index) => {
+                const start = position;
+                position += part.duration_minutes;
+                return <path key={index} className={part.kind} d={`M${start} 0H${position}V24H${start}Z`} />;
+            })}
+        </svg>
+    );
+}
+SchedulePreview.propTypes = { segments: PropTypes.array.isRequired };

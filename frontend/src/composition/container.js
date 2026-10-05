@@ -9,13 +9,21 @@ import { actionHandler } from '../infrastructure/executeAction.js';
 import { sessionReader } from '../infrastructure/readSession.js';
 import { HttpDiaryRepository } from '../infrastructure/repositories/diary.js';
 import { HttpSessionRepository } from '../infrastructure/repositories/session.js';
+import { BrowserThemeRepository } from '../infrastructure/repositories/theme.js';
 import { MessageBus } from '../messaging/MessageBus.js';
+import { startTheme, themeBindings } from './theme.js';
 
-export function createRuntime({ transport = globalThis.fetch.bind(globalThis), repository, diaryRepository } = {}) {
+export function createRuntime({
+    transport = globalThis.fetch.bind(globalThis),
+    repository,
+    diaryRepository,
+    themeRepository = new BrowserThemeRepository(),
+} = {}) {
     const client = new ApiClient(transport);
     const sessionRepository = repository ?? new HttpSessionRepository(client);
     const diary = diaryRepository ?? new HttpDiaryRepository(client);
     const bus = new MessageBus({
+        ...themeBindings(themeRepository),
         [actionType]: { layer: 'application', handle: executeAction },
         [persistAction]: { layer: 'infrastructure', handle: actionHandler(diary) },
         [commands.loadSession]: { layer: 'application', handle: loadSession },
@@ -24,5 +32,5 @@ export function createRuntime({ transport = globalThis.fetch.bind(globalThis), r
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: 30000 }, mutations: { retry: false } },
     });
-    return { bus, queryClient };
+    return { bus, queryClient, startTheme: (root) => startTheme({ bus, queryClient }, themeRepository, root) };
 }
