@@ -1,0 +1,5 @@
+@theme {
+    --color-brand-primary: #665295;
+    --font-ios: var(--font-ui);
+    --font-material: var(--font-ui);
+}

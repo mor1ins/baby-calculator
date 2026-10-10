@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { Loading } from './Forms.jsx';
 import { Icon } from './Icon.jsx';
+import { Card } from './Mobile.jsx';
+import { PeriodForm } from './ReportActions.jsx';
 import { dateShift, duration, today } from './time.js';
 import { useRead } from './useApi.js';
 
@@ -14,6 +16,7 @@ function monthBounds(date) {
 }
 
 export function History({ user, owner }) {
+    const [exporting, setExporting] = useState(false);
     const [selected, setSelected] = useState(today(user.timezone));
     const { start, end } = monthBounds(selected);
     const query = useRead({
@@ -25,7 +28,27 @@ export function History({ user, owner }) {
     const href = (date) => `${owner ? '/admin/' + owner : '/'}?date=${date}`;
     return (
         <>
-            <section className="card">
+            {!owner && (
+                <div className="history-tools">
+                    <button type="button" onClick={() => navigate('/statistics')}>
+                        <Icon name="chart" />
+                        Статистика
+                    </button>
+                    <button type="button" onClick={() => setExporting(true)}>
+                        <Icon name="download" />
+                        Экспорт CSV
+                    </button>
+                </div>
+            )}
+            {exporting && (
+                <PeriodForm
+                    period={{ from: start, to: end > today(user.timezone) ? today(user.timezone) : end }}
+                    zone={user.timezone}
+                    close={() => setExporting(false)}
+                    exporting
+                />
+            )}
+            <Card className="calendar-card">
                 <div className="day-picker">
                     <button
                         type="button"
@@ -50,9 +73,9 @@ export function History({ user, owner }) {
                     recorded={query.data?.items || []}
                     select={(date) => navigate(href(date))}
                 />
-            </section>
+            </Card>
             <div className="section-head">
-                <h2>Записи за месяц</h2>
+                <h2>Записи по дням</h2>
                 <span>Ваш дневник</span>
             </div>
             <Loading query={query}>

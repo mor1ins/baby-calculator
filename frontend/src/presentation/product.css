@@ -1,0 +1,212 @@
+/* Product shell around the shared, unmodified reference component styles. */
+.app-shell.device {
+    margin-inline: auto;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.form-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-stack .mobile-field {
+    margin: 0;
+}
+
+.form-stack > .primary {
+    margin-top: 8px;
+}
+
+.loading-state {
+    padding: 24px 0;
+}
+
+.previous-night-context {
+    margin-bottom: 16px;
+}
+
+.sheet .sheet-head h2 {
+    margin: 0;
+    font: 650 1.375rem/1.3 var(--font-ui);
+    letter-spacing: -0.02em;
+}
+
+.notice {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 16px 0;
+}
+
+.status-tag {
+    margin-left: 8px;
+    color: var(--purple);
+    font-size: 11px;
+}
+
+.history-row {
+    display: flex;
+}
+
+.day-picker {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.day-picker button {
+    min-width: 44px;
+}
+
+.history-copy {
+    flex: 1;
+}
+
+.history-copy > span {
+    display: block;
+}
+
+.theme-selector {
+    border: 0;
+    margin: 0;
+    padding: 12px 0;
+}
+
+.theme-options {
+    display: flex;
+    gap: 8px;
+}
+
+.theme-option {
+    flex: 1;
+    text-align: center;
+}
+
+.theme-option input {
+    width: auto;
+    margin-right: 6px;
+}
+
+.theme-option-label {
+    font-size: 14px;
+}
+
+.schedule-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.schedule-field input {
+    min-width: 0;
+}
+
+.report-table {
+    overflow-x: auto;
+}
+
+.report-table table {
+    width: 100%;
+}
+
+.photo-file {
+    max-width: 100%;
+}
+
+.auth-form .auth-art {
+    margin-bottom: 24px;
+}
+
+.empty-report {
+    margin-top: 24px;
+}
+
+@media (width >= 700px) {
+    .app-shell.device {
+        max-width: 480px;
+    }
+}
+
+.page-head h1:focus {
+    outline: none;
+}
+
+.rhythm-svg {
+    width: 100%;
+    height: 100%;
+    stroke: none;
+    position: absolute;
+    inset: 0;
+}
+
+.rhythm-svg .nap {
+    fill: var(--chart-nap);
+}
+
+.rhythm-svg .night {
+    fill: var(--chart-night);
+}
+
+.schedule-actions {
+    flex-wrap: wrap;
+}
+
+.schedule-default {
+    width: 100%;
+}
+
+.mini-plan {
+    width: 100%;
+    stroke: none;
+}
+
+.mini-plan .awake {
+    fill: var(--yellow);
+}
+
+.mini-plan .nap {
+    fill: var(--chart-nap);
+}
+
+.mini-plan .night {
+    fill: var(--chart-night);
+}
+
+.day-context-actions {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+#user-search {
+    margin: 8px 0 18px;
+}
+
+.user-card .status {
+    margin-top: 10px;
+}
+
+.start-sleep-actions {
+    margin-top: 20px;
+}
+
+#sheet-content > .add-past:last-child {
+    margin-bottom: 0;
+}
+
+:root[data-theme='light'] {
+    color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+    color-scheme: dark;
+}
+
+.rhythm-svg .settling {
+    fill: none;
+    stroke: var(--chart-event);
+    stroke-width: 0.35;
+}

@@ -26,7 +26,7 @@ test('approved mobile composition, responsive layout and modal keyboard behavior
     }
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: 'test-results/design-today.png', fullPage: true });
-    const trigger = page.getByRole('button', { name: 'Записать сон вручную' });
+    const trigger = page.getByRole('button', { name: 'Добавить прошедший сон' });
     await trigger.click();
     const sheet = page.getByRole('dialog', { name: 'Записать сон' });
     await expect(sheet).toBeVisible();

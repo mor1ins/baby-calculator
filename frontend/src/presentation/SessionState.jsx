@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
 import { commands } from '../contracts/messages.js';
 import { useBus } from './BusContext.jsx';
+import { Icon } from './Icon.jsx';
 
-export function SessionState() {
+export function SessionState({ hideAnonymous = false }) {
     const bus = useBus();
     const session = useQuery({
         queryKey: ['session'],
@@ -24,7 +26,7 @@ export function SessionState() {
         );
     }
     if (!session.data.user)
-        return (
+        return hideAnonymous ? null : (
             <p>
                 Сохраняйте историю сна в своём аккаунте. <Link to="/login">Войти</Link>
             </p>
@@ -34,7 +36,24 @@ export function SessionState() {
 
 function accessMessage(error, user) {
     if (error?.code === 'account_blocked' || user?.blocked) {
-        return <p role="alert">Доступ к аккаунту ограничен. Свяжитесь с администратором.</p>;
+        return (
+            <div className="empty welcome-card" role="alert">
+                <div className="empty-orbit">
+                    <Icon name="lock" />
+                </div>
+                <h2>Доступ приостановлен</h2>
+                <p>
+                    Доступ к аккаунту ограничен.
+                    <br />
+                    Ваши записи сохранены.
+                    <br />
+                    Для восстановления доступа обратитесь к администратору.
+                </p>
+                <Link className="outline-button" to="/login">
+                    Вернуться ко входу
+                </Link>
+            </div>
+        );
     }
     if (error?.status === 401) {
         return (
@@ -45,3 +64,5 @@ function accessMessage(error, user) {
     }
     return null;
 }
+
+SessionState.propTypes = { hideAnonymous: PropTypes.bool };

@@ -1,6 +1,9 @@
+import { ListInput } from 'konsta/react';
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useForm } from 'react-hook-form';
+
+import { Button } from './Mobile.jsx';
 
 const localErrors = {
     network_error: 'Нет соединения с сервером. Повторите запрос.',
@@ -47,27 +50,14 @@ export function Form({ fields, initial = {}, submit, label = 'Сохранить
     });
     return (
         <form onSubmit={send} className="form-stack">
-            {fields.map(({ name, label: title, options, ...input }) => (
-                <label key={name}>
-                    <span>{title}</span>
-                    {options ? (
-                        <select {...register(name)} {...input}>
-                            {options.map(([value, text]) => (
-                                <option key={value} value={value}>
-                                    {text}
-                                </option>
-                            ))}
-                        </select>
-                    ) : (
-                        <input {...register(name)} {...input} />
-                    )}
-                </label>
+            {fields.map((field) => (
+                <Field key={field.name} field={field} register={register} />
             ))}
             {children}
             <ErrorMessage error={error} />
-            <button type="submit" disabled={disabled || isSubmitting}>
+            <Button type="submit" disabled={disabled || isSubmitting}>
                 {isSubmitting ? 'Сохраняем…' : label}
-            </button>
+            </Button>
         </form>
     );
 }
@@ -86,9 +76,9 @@ export function Loading({ query, children }) {
         return (
             <div>
                 <ErrorMessage error={query.error} />
-                <button type="button" onClick={() => query.refetch()}>
+                <Button type="button" onClick={() => query.refetch()}>
                     Повторить
-                </button>
+                </Button>
             </div>
         );
     return children;
@@ -112,9 +102,9 @@ export function ActionButton({ action, children, confirm, className }) {
     };
     return (
         <>
-            <button type="button" className={className} onClick={run} disabled={busy}>
+            <Button type="button" className={className} onClick={run} disabled={busy}>
                 {busy ? 'Подождите…' : children}
-            </button>
+            </Button>
             <ErrorMessage error={error} />
         </>
     );
@@ -137,3 +127,29 @@ export function confirmedVersion(original, current) {
     }
     return current;
 }
+
+function Field({ field, register }) {
+    const id = useId();
+    const { name, label, options, ...input } = field;
+    return (
+        <div className="mobile-field">
+            <label htmlFor={id}>{label}</label>
+            <ListInput
+                component="div"
+                inputId={id}
+                {...register(name)}
+                {...input}
+                type={options ? 'select' : input.type || 'text'}
+                outline={false}
+                data-konsta="ListInput"
+            >
+                {options?.map(([value, text]) => (
+                    <option key={value} value={value}>
+                        {text}
+                    </option>
+                ))}
+            </ListInput>
+        </div>
+    );
+}
+Field.propTypes = { field: PropTypes.object.isRequired, register: PropTypes.func.isRequired };

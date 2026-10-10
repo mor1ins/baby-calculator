@@ -12,6 +12,7 @@ export function themeBindings(repository) {
 export async function startTheme({ bus, queryClient }, repository, root) {
     const apply = (preference) => {
         root.dataset.theme = preference.resolved;
+        root.classList.toggle('dark', preference.resolved === 'dark');
         queryClient.setQueryData(themeQueryKey, preference);
     };
     apply(await bus.send({ type: themePreference, action: 'read' }));
