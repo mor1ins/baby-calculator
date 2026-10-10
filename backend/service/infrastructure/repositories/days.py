@@ -99,7 +99,11 @@ class DaysRepository:
                 "schedule": schedule,
                 "previous_night": previous[-1] if previous else None,
                 "sleeps": [sleep for sleep in sleeps if sleep["day"] == day], "targets": targets,
-                "comments": comments}
+                "comments": comments, "context": row["context"] if row else {},
+                "settling": await self.records.rows(
+                    """SELECT id,day,start_at,end_at,sleep_id,version FROM settling_attempts
+                       WHERE diary_id=:id AND (day=:date OR end_at IS NULL) ORDER BY start_at""",
+                    id=diary["id"], date=day)}
 
     async def get_day(self, op: Operation, user: dict[str, Any]) -> OperationResult:
         diary = await self.schedules.diary(op.params["user_id"] if op.name.startswith("admin") else user["id"])

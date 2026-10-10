@@ -10,9 +10,10 @@ from service.api.operations import ApiEndpoints, CookiePolicy
 from service.application.health import ReadinessHandler
 from service.application.operations import OperationHandler
 from service.contracts.health import CheckDatabase, CheckReadiness, RuntimeStatus
-from service.contracts.operations import CalculateDays, Operation, PersistOperation
+from service.contracts.operations import CalculateDays, CalculateReport, Operation, PersistOperation
 from service.contracts.persistence import CreateAccountDiary
 from service.domain.day import CalculateDaysHandler
+from service.domain.report import CalculateReportHandler
 from service.infrastructure.accounts import CreateAccountDiaryHandler
 from service.infrastructure.database import DatabaseReadinessHandler
 from service.infrastructure.operations import PersistOperationHandler
@@ -50,6 +51,7 @@ def database_timeout(settings: Settings) -> float:
 class Container(containers.DeclarativeContainer):
     """Composition root. Register future handler factories here, never inside consumers."""
 
+    calculate_report_handler = providers.Factory(CalculateReportHandler)
     mediator = providers.Factory(Mediator)
     message_bus = providers.Singleton(MediatorMessageBus, mediator_factory=mediator.provider, max_transfers=3)
 
@@ -100,6 +102,9 @@ class Container(containers.DeclarativeContainer):
 
 
 def register_handlers(container: Container) -> None:
+    container.message_bus().register(
+        CalculateReport, CalculateReportHandler, container.calculate_report_handler, "domain",
+    )
     container.message_bus().register(CalculateDays, CalculateDaysHandler, container.calculate_days_handler, "domain")
     container.message_bus().register(Operation, OperationHandler, container.operation_handler, "application")
     container.message_bus().register(

@@ -23,7 +23,7 @@ class SchedulesRepository:
 
     async def get(self, diary_id: Any, schedule_id: Any) -> dict[str, Any]:
         result = await self._records.require(
-            "SELECT id,version,name,archived FROM schedule_templates WHERE diary_id=:diary AND id=:id",
+            "SELECT id,version,name,description,archived FROM schedule_templates WHERE diary_id=:diary AND id=:id",
             diary=diary_id, id=schedule_id,
         )
         result["segments"] = await self._records.rows(
@@ -58,9 +58,9 @@ class SchedulesRepository:
         diary = await self.diary(user["id"])
         schedule_id = uuid4()
         await self._records.rows(
-            """INSERT INTO schedule_templates(id,diary_id,name,created_at,updated_at)
-               VALUES (:id,:diary,:name,:now,:now)""", id=schedule_id, diary=diary["id"],
-            name=nonempty(op.data["name"]), now=op.now,
+            """INSERT INTO schedule_templates(id,diary_id,name,description,created_at,updated_at)
+               VALUES (:id,:diary,:name,:description,:now,:now)""", id=schedule_id, diary=diary["id"],
+            name=nonempty(op.data["name"]), description=op.data.get("description", ""), now=op.now,
         )
         await self.segments(schedule_id, op.data["segments"])
         return OperationResult(await self.get(diary["id"], schedule_id), 201)
@@ -71,8 +71,10 @@ class SchedulesRepository:
         check_version(current["version"], op.version)
         data = {**current, **op.data}
         await self._records.rows(
-            """UPDATE schedule_templates SET name=:name,archived=:archived,version=version+1,updated_at=:now
+            """UPDATE schedule_templates SET name=:name,description=:description,archived=:archived,
+                   version=version+1,updated_at=:now
                WHERE id=:id""", name=nonempty(data["name"]), archived=data["archived"], now=op.now, id=current["id"],
+            description=data["description"],
         )
         if "segments" in op.data:
             await self.segments(current["id"], data["segments"])

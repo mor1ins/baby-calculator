@@ -52,7 +52,7 @@ def test_migration_roundtrip_and_readiness(database_url: str, migration_config: 
             with engine.connect() as connection:
                 assert connection.scalars(text("SELECT code FROM roles ORDER BY code")).all() == ["admin", "user"]
                 assert connection.scalar(text("SELECT count(*) FROM users")) == 0
-                assert len(inspect(connection).get_table_names()) == 15
+                assert len(inspect(connection).get_table_names()) == 18
             with engine.begin() as connection:
                 execute(connection, "UPDATE alembic_version SET version_num='unknown_revision'")
             assert client.get("/ready").status_code == 503
