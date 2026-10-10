@@ -50,16 +50,6 @@
 
 .bottom-nav { z-index:50; }
 .mobile-tabbar-inner { width:100%; gap:0; }
-.mobile-field { margin:16px 0; color:var(--ink); }
-.mobile-field label { margin:0; font-size:13px; color:var(--muted); }
-.mobile-field input, .mobile-field select, .mobile-field textarea { margin:0; min-width:0; width:100%; color:var(--ink); font-size:16px; }
-.mobile-field textarea { min-height:88px; }
-
-.mobile-field { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px 0; }
-.mobile-field input, .mobile-field select, .mobile-field textarea { border:0; border-radius:0; background:transparent; box-shadow:none; padding:4px 0; min-height:40px; }
-.mobile-field label { background:transparent; line-height:1.4; }
-.mobile-field:focus-within { border-color:var(--purple); }
-
 #platform-switcher { display:flex; justify-content:center; padding:0 20px 8px; }
 .platform-control { width:224px; max-width:100%; }
 .platform-control button { min-height:44px; height:auto; font-size:13px; }
@@ -97,3 +87,75 @@
 .public-report-heading .page-head .subtle { margin-top:8px; }
 .public-report-heading .public-snapshot { margin:0; line-height:1.6; }
 .public-report-heading + .insight-tabs { margin-top:0; margin-bottom:24px; }
+
+/* Shared polish for the current Konsta presentation layer. */
+.mobile-button.primary { color:var(--on-accent); font-size:16px; }
+.chips .mobile-button[aria-pressed="true"] { color:var(--on-accent); }
+.readonly-banner { background:var(--lavender); color:var(--ink); font-size:13px; }
+.mobile-field { border:0; padding:0; border-radius:0; background:transparent; margin:16px 0; }
+.mobile-field > label { display:block; margin:0 0 8px; color:var(--ink); font-size:14px; }
+.mobile-field .k-list-input { border:1px solid var(--control-border); border-radius:12px; padding:0; overflow:hidden; background:var(--surface); color:var(--ink); }
+.mobile-field .k-list-input div { margin:0; padding:0; background:transparent; color:inherit; }
+.mobile-field .k-list-input span { display:none; }
+.mobile-field .k-list-input :is(input,select,textarea) { border:0; border-radius:0; background:transparent; padding:12px; min-height:48px; font-size:16px; line-height:1.5; }
+.mobile-field .k-list-input textarea { min-height:96px; resize:vertical; }
+.mobile-field .k-list-input:focus-within { outline:2px solid var(--focus-ring); outline-offset:2px; }
+.mobile-field .k-list-input :is(input,select,textarea):focus { outline:none; box-shadow:none; }
+.schedule-field { grid-template-columns:minmax(0,1fr) 88px; gap:12px; padding:8px 0; }
+.schedule-field label { font-size:14px; line-height:1.5; }
+.schedule-field input { margin:0; width:100%; }
+#sheet { margin:auto; }
+#sheet .primary + :is(.outline-button,.text-button) { margin-top:12px; }
+#sheet .sheet-head { align-items:center; }
+.night-finish { margin-top:16px; }
+.mobile-segmented { height:auto; }
+.mobile-segmented button { min-height:48px; font-size:13px; }
+.mobile-tabbar button span { font-size:12px; }
+.form-note,.info-note,.subtle { font-size:14px; }
+.prototype-label { display:none; }
+#platform-switcher { justify-content:flex-start; padding:16px 0 0; }
+#profile-platform-switcher { margin:16px 0; }
+.app-header { padding:max(12px, env(safe-area-inset-top)) 22px 0; }
+#screen[data-page="public-report"] { padding-top:max(16px, env(safe-area-inset-top)); }
+#sheet-content { padding-bottom:max(24px, env(safe-area-inset-bottom)); }
+#screen[data-page="day"] { padding-top:12px; }
+#screen[data-page="day"] .page-head { margin-bottom:16px; }
+#screen[data-page="day"] .child-card { padding:12px; margin:0 0 8px; gap:12px; }
+#screen[data-page="day"] .child-photo { width:44px; height:44px; min-width:44px; font-size:20px; }
+#screen[data-page="day"] .child-card .kicker { display:none; }
+#screen[data-page="day"] .child-card h2 { font-size:17px; margin:0; }
+#screen[data-page="day"] .child-card p { font-size:13px; margin:2px 0 0; }
+#screen[data-page="day"] .schedule-strip { min-height:48px; padding:8px 12px; margin-bottom:12px; }
+#screen[data-page="day"] .schedule-strip span { display:flex; flex-wrap:wrap; align-items:baseline; column-gap:8px; }
+#screen[data-page="day"] .schedule-strip strong { margin:0; font-size:14px; }
+#screen[data-page="day"] .hero { padding:20px; }
+#screen[data-page="day"] .hero-top { margin-bottom:12px; }
+#screen[data-page="day"] .hero .countdown { font-size:44px; }
+#screen[data-page="day"] .hero .primary { margin-top:12px; }
+#screen[data-page="day"] .settling-start { margin-top:8px; }
+#screen[data-page="public-report"] .child-card { flex-direction:row; text-align:left; padding:16px; margin:16px 0; gap:16px; }
+#screen[data-page="public-report"] .child-card .child-photo { width:64px; height:64px; flex:0 0 64px; font-size:28px; }
+#screen[data-page="public-report"] .child-card > div:not(.child-photo) { flex:1; width:auto; }
+#screen[data-page="public-report"] .child-card h2 { font-size:22px; margin:0 0 4px; }
+#screen[data-page="public-report"] .child-card p { font-size:14px; margin:0; }
+.public-export-actions { margin:12px 0 20px; }
+.insight-highlights,.report-metrics { border:1px solid var(--line); border-radius:20px; background:var(--surface); gap:0; overflow:hidden; }
+.insight-highlights article,.report-metrics .report-metric { border:0; border-radius:0; background:transparent; box-shadow:none; padding:16px; margin:0; }
+.insight-highlights article + article { border-left:1px solid var(--line); }
+.insight-highlights article:first-child,.report-metric:first-child { background:transparent; }
+.report-metrics .report-metric + .report-metric { border-top:1px solid var(--line); }
+.report-metrics .report-metric { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:12px; row-gap:4px; grid-column:1 / -1; }
+.report-metrics .report-metric strong { grid-column:2; grid-row:1 / 3; align-self:center; font-size:22px; }
+.report-metrics .report-metric small { grid-column:1; font-size:13px; }
+.report-metrics .report-metric span { font-size:14px; }
+.insight-highlights small { font-size:13px; }
+.calendar-card .calendar,.compare-calendar-grid { gap:0; }
+.calendar-card,.compare-calendar { padding-inline:8px; }
+.calendar-card .calendar button,.compare-calendar-grid button { min-height:48px; }
+@media(max-width:699px) { #sheet { margin:auto 0 0; } }
+@media(max-width:360px) {
+  .calendar-card,.compare-calendar { padding-inline:0; }
+  .calendar-card .calendar,.compare-calendar-grid { margin-inline:-12px; }
+  .mobile-tabbar button span { font-size:11px; }
+  .insight-highlights article { padding:12px; }
+}

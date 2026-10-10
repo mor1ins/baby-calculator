@@ -389,7 +389,7 @@ document.addEventListener("click", (event) => {
   }
   if (event.target.closest('[data-report="profile"]'))
     modal(
-      "Настройки дневника",
-      '<label for="demo-name">Ваше имя</label><input id="demo-name" value="Анна Смирнова"><label for="demo-zone">Часовой пояс</label><input id="demo-zone" value="Europe/Moscow"><p class="info-note">Демонстрационные данные. В приложении эти настройки сохраняются в профиле.</p><button class="primary" data-action="close">Готово</button>',
+      "Личные данные",
+      '<label for="demo-name">Ваше имя</label><input id="demo-name" value="Анна Смирнова"><p class="info-note">Демонстрационные данные. В приложении эти настройки сохраняются в профиле.</p><button class="primary" data-action="close">Готово</button>',
     );
 });

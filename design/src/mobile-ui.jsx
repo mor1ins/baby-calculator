@@ -32,11 +32,11 @@ function children(node) {
   for (let index=0; index<nodes.length; index++) {
     const child=nodes[index];
     const input=child.nodeType === Node.ELEMENT_NODE && child.tagName === 'LABEL' && child.htmlFor ? child.nextElementSibling : null;
-    if (input && ['INPUT','TEXTAREA','SELECT'].includes(input.tagName) && input.id===child.htmlFor && !['checkbox','radio','hidden','file'].includes(input.type)) {
+    if (!node.classList?.contains('schedule-field') && input && ['INPUT','TEXTAREA','SELECT'].includes(input.tagName) && input.id===child.htmlFor && !['checkbox','radio','hidden','file'].includes(input.type)) {
       const {id, className, style, ...props}=attributes(input);
       const type=input.tagName==='INPUT' ? input.type : input.tagName.toLowerCase();
       const defaultValue=type==='textarea' ? input.textContent : type==='select' ? input.querySelector('[selected]')?.value || input.querySelector('option')?.value : props.defaultValue;
-      result.push(<ListInput {...props} key={index} component="div" inputId={id} type={type} defaultValue={defaultValue} inputClassName={className} inputStyle={style} outline={false} label={<label htmlFor={id}>{child.textContent}</label>} className="mobile-field" data-konsta="ListInput">{type==='select' ? children(input) : undefined}</ListInput>);
+      result.push(<div key={index} className="mobile-field"><label htmlFor={id}>{child.textContent}</label><ListInput {...props} component="div" inputId={id} type={type} defaultValue={defaultValue} inputClassName={className} inputStyle={style} outline={false} data-konsta="ListInput">{type==='select' ? children(input) : undefined}</ListInput></div>);
       index=nodes.indexOf(input);
     } else result.push(convert(child,index));
   }
@@ -81,6 +81,12 @@ function draw(entry) {
 }
 window.mobileUI = {
   render(element, html) {
+    // The profile owns a temporary preview control; release it before replacing the page.
+    if (element.id === 'screen') {
+      const slot = element.querySelector('#profile-platform-switcher');
+      const control = roots.get(slot);
+      if (control) { control.root.unmount(); roots.delete(slot); }
+    }
     let entry = roots.get(element);
     if (!entry) { entry = {root:createRoot(element), version:0}; roots.set(element,entry); }
     entry.version++;
@@ -105,8 +111,8 @@ function setPlatform(next) {
   history.replaceState(null, '', url);
   window.mobileUI.refreshTheme();
 }
-const switcher = document.getElementById('platform-switcher');
-if (switcher) {
+function mountPlatformSwitcher(switcher) {
+  if (!switcher || roots.has(switcher)) return;
   const entry = {
     root: createRoot(switcher), version: 0,
     get tree() {
@@ -119,3 +125,6 @@ if (switcher) {
   roots.set(switcher, entry);
   draw(entry);
 }
+
+window.mobileUI.mountPlatformSwitcher = mountPlatformSwitcher;
+mountPlatformSwitcher(document.getElementById('platform-switcher'));
