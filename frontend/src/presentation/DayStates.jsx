@@ -3,8 +3,7 @@ import { useState } from 'react';
 
 import { DurationValue } from './DurationValue.jsx';
 import { Icon } from './Icon.jsx';
-import { Button, Card, Section } from './Mobile.jsx';
-import { Note } from './Notes.jsx';
+import { Button } from './Mobile.jsx';
 import { SleepForm } from './SleepForm.jsx';
 import { clockTime, dateShift } from './time.js';
 
@@ -44,7 +43,6 @@ WelcomeDay.propTypes = { day: PropTypes.object.isRequired };
 export function NightDay({ day }) {
     const [open, setOpen] = useState(false);
     const sleep = day.sleeps.find((item) => item.kind === 'night' && !item.end);
-    const interval = day.timeline.find((item) => item.sleep_id === sleep.id);
     return (
         <>
             <section className="hero night-hero">
@@ -64,15 +62,6 @@ export function NightDay({ day }) {
                 Завершить ночной сон
             </Button>
             <p className="form-note">Нажмите, когда сон закончился, например при утреннем подъёме.</p>
-            <Section title="Заметка о ночи" />
-            {interval && <Note interval={interval} />}
-            <Card>
-                <h3>Ночь относится к {day.date}</h3>
-                <p className="subtle">
-                    Утром она останется в итогах прошедшего дня. К дневному бодрствованию ночные пробуждения не
-                    прибавляются.
-                </p>
-            </Card>
             {open && <SleepForm sleep={sleep} day={day} finish close={() => setOpen(false)} />}
         </>
     );

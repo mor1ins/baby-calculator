@@ -138,7 +138,6 @@ TimelineEntry.propTypes = {
 function DayContent({ day, owner }) {
     const readOnly = Boolean(owner);
     const [editing, setEditing] = useState(undefined);
-    if (!readOnly && day.sleeps.some((item) => item.kind === 'night' && !item.end)) return <NightDay day={day} />;
     if (!readOnly && !day.previous_night && !day.sleeps.length) return <WelcomeDay day={day} />;
     return (
         <>
@@ -361,6 +360,7 @@ function DayActions({ day, readOnly, edit }) {
         });
     const active = day.sleeps.find((sleep) => !sleep.end);
     if (readOnly) return <p className="notice">График: {day.schedule?.name || 'не выбран'}</p>;
+    if (active?.kind === 'night') return <NightDay day={day} />;
     return (
         <>
             <ScheduleChoice day={day} />
