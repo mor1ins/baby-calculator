@@ -1,5 +1,9 @@
 /* Presentation-only prototype. No API, account creation or persistent storage. */
 const paths = {
+  copy: '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+  chart: '<path d="M4 3v18h17M8 16v-4m5 4V7m5 9v-7"/>',
+  download: '<path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/>',
+  share: '<path d="M12 16V3m-4 4 4-4 4 4M5 13v8h14v-8"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4 19 5"/>',
   moon: '<path d="M20.5 14.3A9 9 0 0 1 9.7 3.5 9 9 0 1 0 20.5 14.3Z"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -46,17 +50,10 @@ const state = {
   sleeps: [{ id: "sleep0", start: 650, end: 730, kind: "nap" }],
   dayStart: 390,
   nextSleepId: 1,
+  settling: null,
+  settlingAttempts: [],
   past: {},
   morningStarts: {},
-  nightEventId: "night-demo-3",
-  nightNow: 1390,
-  nextNightEventId: 1,
-  nightEvents: {
-    "past2-night": [
-      { id: "example-1", at: "2026-10-02T22:15" },
-      { id: "example-2", at: "2026-10-03T01:10" },
-    ],
-  },
   schedules: [
     {
       name: "Обычный день",
@@ -80,6 +77,7 @@ state.dayPlan = structuredClone(state.schedules[0]);
 const screen = document.querySelector("#screen");
 const sheet = document.querySelector("#sheet");
 let toastTimer;
+let modalOrigin;
 function toast(message) {
   const element = document.querySelector("#toast");
   element.textContent = message;
@@ -88,10 +86,31 @@ function toast(message) {
   toastTimer = setTimeout(() => element.classList.remove("visible"), 3200);
 }
 function modal(title, body) {
-  document.querySelector("#sheet-content").innerHTML =
-    `<div class="sheet-head"><h2 id="sheet-title">${title}</h2><button class="icon-button" data-action="close" aria-label="Закрыть">${icon("close")}</button></div>${body}`;
-  sheet.showModal();
+  if (!sheet.open) {
+    const active = document.activeElement;
+    modalOrigin = active?.id
+      ? `#${CSS.escape(active.id)}`
+      : [...(active?.attributes || [])]
+          .filter(
+            (attribute) =>
+              attribute.name.startsWith("data-") ||
+              attribute.name === "aria-label",
+          )
+          .map(
+            (attribute) =>
+              `[${attribute.name}="${CSS.escape(attribute.value)}"]`,
+          )
+          .join("");
+  }
+  window.mobileUI.render(document.querySelector("#sheet-content"),
+    `<div class="sheet-head"><h2 id="sheet-title">${title}</h2><button class="icon-button" data-action="close" aria-label="Закрыть">${icon("close")}</button></div>${body}`);
+  if (!sheet.open) sheet.showModal();
+  sheet.scrollTop = 0;
 }
+sheet.addEventListener("close", () => {
+  if (!sheet.open && modalOrigin)
+    document.querySelector(modalOrigin)?.focus({ preventScroll: true });
+});
 function head(title, subtitle, action = "") {
   return `<div class="page-head"><div><h1>${title}</h1><p class="subtle">${subtitle}</p></div>${action}</div>`;
 }
@@ -111,8 +130,12 @@ function row(start, end, label, kind, key, forecast = false, active = false) {
       : state.notes[key]
         ? `<div class="interval-note">${escapeText(state.notes[key])}</div>`
         : "";
+  const recorded = kind === "sleep" ? dayContext().records.find(record => record.id === key) : null;
+  const settlingNote = recorded?.settleStart != null ? `<p class="subtle">Укладывание · ${duration(start-recorded.settleStart)} · с ${time(recorded.settleStart)}</p>` : "";
+  const attempts = !forecast && kind === "wake" && state.route !== "previous" && !state.adminView
+    ? state.settlingAttempts.filter(attempt => attempt.start >= start && attempt.end <= (active ? state.now : end)).map(attempt => `<div class="settling-attempt"><strong>Укладывание без сна</strong><span>${time(attempt.start)} — ${time(attempt.end)} · ${duration(attempt.end-attempt.start)}</span></div>`).join("") : "";
   const dateSuffix = end >= 1440 ? " · завтра" : "";
-  return `<div class="time-row ${kind === "sleep" ? "sleep" : ""} ${forecast ? "forecast" : ""}"><div class="time-label">${time(start)}</div><div class="time-track"><span class="time-dot"></span></div><div class="interval"><div class="interval-top"><h3>${label}${active ? '<span class="now-tag">сейчас</span>' : ""}</h3><span class="duration">${duration(Math.max(0, (active ? state.now : end) - start))}</span></div><p class="subtle">${time(start)} — ${active ? "сейчас" : time(end) + dateSuffix}${forecast ? " · прогноз" : ""}</p>${note}${!forecast && label === "Ночной сон" ? `<button class="night-event-link" data-action="night-event-log" data-key="${key}">Пробуждения / плач · ${(state.nightEvents[key] || []).length}${icon("arrow")}</button>` : ""}${!forecast && !state.adminView ? `<button class="interval-edit" data-action="${kind === "sleep" ? "edit-sleep" : "edit-wake"}" data-key="${key}">${icon("sliders")}${kind === "sleep" ? "Изменить интервал" : "Исправить границы"}</button>` : ""}</div></div>`;
+  return `<div class="time-row ${kind === "sleep" ? "sleep" : ""} ${forecast ? "forecast" : ""}"><div class="time-label">${time(start)}</div><div class="time-track"><span class="time-dot"></span></div><div class="interval"><div class="interval-top"><h3>${label}${active ? '<span class="now-tag">сейчас</span>' : ""}</h3><span class="duration">${duration(Math.max(0, (active ? state.now : end) - start))}</span></div><p class="subtle">${time(start)} — ${active ? "сейчас" : time(end) + dateSuffix}${forecast ? " · прогноз" : ""}</p>${settlingNote}${attempts}${note}${!forecast && !state.adminView ? `<button class="interval-edit" data-action="${kind === "sleep" ? "edit-sleep" : "edit-wake"}" data-key="${key}">${icon("sliders")}${kind === "sleep" ? "Изменить интервал" : "Исправить границы"}</button>` : ""}</div></div>`;
 }
 function projection() {
   const plan = state.dayPlan.values;
@@ -183,17 +206,28 @@ function projection() {
   html += row(cursor, cursor + plan[5], "Ночной сон", "sleep", "", true);
   return { html, active, sleepTotal, wakeTotal, bedtime: cursor };
 }
+function settlingControl() {
+  if (!state.settling) return `<button class="primary" data-action="settling-start">${icon("clock")}Начать укладывание</button><button class="settling-start" data-action="start">${icon("moon")}Уже уснул</button>`;
+  return `<button class="primary" data-action="start">${icon("moon")}Уснул</button><div class="settling-active"><button class="settling-without-sleep" data-action="settling-without-sleep">Завершить без сна</button><button class="settling-without-sleep" data-action="settling-cancel">Отменить без сохранения</button></div>`;
+}
+setInterval(() => {
+  if (!state.settling) return;
+  state.now = Math.max(state.now, state.settling.start + Math.floor((Date.now()-state.settling.startedAt)/60000));
+  const elapsed = document.querySelector("#settling-elapsed");
+  if (elapsed) elapsed.textContent = duration(state.now-state.settling.start);
+}, 1000);
 function day() {
   if (state.empty)
     return (
       head("Новый день", "Начнём с первого пробуждения") +
-      `<div class="empty"><div class="empty-orbit">${icon("sun")}</div><h2>У каждого дня<br>свой ритм</h2><p>Добавьте прошедший ночной сон.<br>По времени пробуждения мы построим<br>начало дня и прогноз.</p><button class="primary" data-action="first-night">${icon("plus")}Добавить ночной сон</button></div>`
+      `<div class="empty welcome-card"><div class="empty-orbit">${icon("sun")}</div><h2>У каждого дня<br>свой ритм</h2><p>Добавьте прошедший ночной сон.<br>По времени пробуждения мы построим<br>начало дня и прогноз.</p><button class="primary" data-action="first-night">${icon("plus")}Добавить ночной сон</button></div>`
     );
   const data = projection();
   const asleep = data.active.kind === "sleep";
   const remaining = Math.max(0, data.active.end - state.now);
   const plan = state.dayPlan;
   const readonly = state.adminView;
+  const settling = !readonly && !asleep && state.settling;
   return (
     (readonly
       ? `<div class="readonly-banner">${icon("lock")}Дневник ${escapeText(state.users[state.userIndex].name)} · только чтение</div>`
@@ -203,39 +237,40 @@ function day() {
       "Суббота, 3 октября",
       `<button class="icon-button" data-route="history" aria-label="Выбрать дату">${icon("calendar")}</button>`,
     ) +
+    `${readonly ? "" : childCard()}` +
     `<button class="schedule-strip" ${readonly ? "disabled" : 'data-action="choose-schedule"'}>${icon("sliders")}<span>График дня<strong>${escapeText(plan.name)}</strong></span>${icon("arrow")}</button>` +
-    `<section class="hero" aria-label="Ближайшее событие"><div class="hero-top"><span class="live-dot"></span>${asleep ? "Малыш спит" : "Малыш бодрствует"} · ${duration(state.now - data.active.start)}</div><div class="hero-art" aria-hidden="true"></div><h2>${asleep ? "До пробуждения" : "До следующего сна"}</h2><div class="countdown">${Math.floor(remaining / 60)} <small>ч</small> ${remaining % 60} <small>м</small></div><div class="hero-detail">Ориентир — ${time(data.active.end)} · по графику дня</div><div class="progress"><span style="width:${Math.min(100, ((state.now - data.active.start) / (data.active.end - data.active.start)) * 100)}%"></span></div><div class="progress-label"><span>С ${time(data.active.start)}</span><span>План ${duration(data.active.end - data.active.start)}</span></div>${readonly ? "" : `<button class="primary" data-action="${asleep ? "finish" : "start"}">${icon(asleep ? "sun" : "moon")}${asleep ? "Проснулся" : "Уснул"}</button>`}</section>` +
+    `<section class="hero" aria-label="Ближайшее событие"><div class="hero-top"><span class="live-dot"></span>${asleep ? "Малыш спит" : settling ? "Укладываем · малыш бодрствует" : "Малыш бодрствует"} · ${duration(state.now - data.active.start)}</div><div class="hero-art" aria-hidden="true"></div><h2>${settling ? "Укладывание длится" : asleep ? "До пробуждения" : "До следующего сна"}</h2><div class="countdown">${settling ? `<span id="settling-elapsed">${duration(state.now-settling.start)}</span>` : `${Math.floor(remaining / 60)} <small>ч</small> ${remaining % 60} <small>м</small>`}</div><div class="hero-detail">${settling ? `Начали в ${time(settling.start)} · входит в бодрствование` : `Ориентир — ${time(data.active.end)} · по графику дня`}</div>${settling ? "" : `<div class="progress"><span style="width:${Math.min(100, ((state.now - data.active.start) / (data.active.end - data.active.start)) * 100)}%"></span></div><div class="progress-label"><span>С ${time(data.active.start)}</span><span>План ${duration(data.active.end - data.active.start)}</span></div>`}${readonly ? "" : asleep ? `<button class="primary" data-action="finish">${icon("sun")}Проснулся</button>` : settlingControl()}</section>` +
     (readonly
       ? '<button class="text-button add-past" data-action="admin-plans">Графики пользователя · только чтение</button>'
       : `<button class="text-button add-past" data-action="add-sleep">${icon("plus")}Добавить прошедший сон</button>`) +
-    section("День в цифрах", `<span>На ${time(state.now)}</span>`) +
+    section("Уже сегодня", `<span>На ${time(state.now)}</span>`) +
     `<div class="metrics">${metric("sun", `${Math.floor(data.sleepTotal / 60)}<small> ч </small>${data.sleepTotal % 60}<small> м</small>`, "Дневной сон", "из " + duration(plan.values[1] + plan.values[3]))}${metric("moon", "—", "Ночной сон", "ещё впереди")}${metric("clock", `${Math.floor(data.wakeTotal / 60)}<small> ч </small>${data.wakeTotal % 60}<small> м</small>`, "Бодрствование", "с текущим периодом")}</div>` +
     section(
-      "Ритм дня",
+      "Лента дня",
       '<div class="legend"><span><i></i>Факт</span><span><i class="future"></i>Прогноз</span></div>',
     ) +
-    `<div class="timeline">${data.html}</div><p class="info-note">${icon("info")}Бодрствование считается между снами. Прогноз меняется вместе с вашим днём.</p>` +
+    `<div class="timeline"><div class="previous-night-context"><span class="kicker">ПРЕДЫДУЩАЯ НОЧЬ · 2 ОКТЯБРЯ</span><p>20:30 — ${time(state.dayStart)} · ${duration(210 + state.dayStart)}</p><p class="subtle">Завершение этой ночи задаёт начало дня. В сегодняшние итоги не входит.</p></div>${data.html}</div><p class="info-note">${icon("info")}Бодрствование считается между снами. Прогноз меняется вместе с вашим днём.</p>` +
     (readonly
       ? '<button class="outline-button" data-route="admin">Назад к пользователям</button>'
       : "")
   );
 }
 function planCard(plan, index, choosing = false) {
-  return `<article class="card ${state.schedule === index ? "selected" : ""}"><div class="card-heading">${icon(index ? "sun" : "moon")}<div><h2>${escapeText(plan.name)}</h2><p class="subtle">${escapeText(plan.description)}</p></div></div>${state.schedule === index ? '<span class="badge">Выбран на сегодня</span>' : '<span class="badge">Личный график</span>'}<div class="mini-plan" aria-label="Чередование бодрствования и сна"><i></i><i class="nap"></i><i></i><i class="nap"></i><i></i><i class="night"></i></div><p class="subtle">2 дневных сна · ${duration(plan.values[1] + plan.values[3])}<br>Полный цикл · ${duration(plan.values.reduce((a, b) => a + b, 0))}</p><div class="card-actions"><button data-action="${choosing ? "apply-schedule" : "edit-schedule"}" data-index="${index}">${choosing ? "Выбрать на сегодня" : "Открыть график"}</button>${icon("arrow")}</div></article>`;
+  const selected = state.schedule === index;
+  const total = plan.values.reduce((a,b) => a+b,0);
+  return `<article class="card plan-card ${selected ? "selected" : ""}"><div class="plan-heading"><span class="plan-symbol">${icon("sliders")}</span><span class="badge">${selected ? "Выбран на сегодня" : "Личный график"}</span></div><h2>${escapeText(plan.name)}</h2><p class="subtle">${escapeText(plan.description)}</p><div class="plan-totals"><div><strong>${duration(plan.values[1]+plan.values[3])}</strong><span>дневного сна</span></div><div><strong>${duration(plan.values[5])}</strong><span>ночного сна</span></div></div><div class="mini-plan" aria-label="Чередование бодрствования и сна">${plan.values.map((v,i)=>`<i class="${i===5 ? "night" : i%2 ? "nap" : ""}" style="flex:${v}"></i>`).join("")}</div><div class="plan-sequence">${plan.values.map((v,i)=>`<span>${icon(i%2 ? "moon" : "sun")}<strong>${duration(v)}</strong></span>`).join("")}</div><p class="form-note">2 дневных сна · полный цикл ${duration(total)}</p><div class="card-actions"><button data-action="${choosing ? "apply-schedule" : "edit-schedule"}" data-index="${index}">${choosing ? "Выбрать на сегодня" : "Настроить график"}</button>${icon("arrow")}</div></article>`;
 }
 function schedules() {
-  return (
-    head("Мои графики", "Разные дни — разный ритм") +
-    state.schedules.map((p, i) => planCard(p, i)).join("") +
-    '<button class="outline-button" data-action="new-schedule">+ Создать график</button>' +
-    `<p class="info-note">${icon("info")}Выбирайте свой график для каждого дня. Изменение шаблона не переписывает историю.</p>`
-  );
+  return head("Мои графики", "Ориентиры для вашего дня") + `<div class="section-intro"><p>Ритм может меняться</p><span>Выберите подходящий график. Прогноз на сегодня подстроится под реальные записи.</span></div>` + state.schedules.map((p,i)=>planCard(p,i)).join("") + `<button class="outline-button" data-action="new-schedule">${icon("plus")}Создать график</button><p class="info-note">${icon("info")}Изменение шаблона не переписывает историю.</p>`;
 }
 function historyPage() {
   return (
-    head("История", "Все маленькие сны на своём месте") +
-    `<div class="card"><div class="section-head" style="margin-top:0"><h2>Октябрь 2026</h2><span>Демонстрационный месяц</span></div><div class="weekdays">${["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((d) => `<span>${d}</span>`).join("")}</div><div class="calendar">${"<span></span>".repeat(3)}${Array.from({ length: 31 }, (_, i) => `<button class="${i + 1 === state.date ? "selected" : ""} ${i < 3 ? "recorded" : ""}" data-action="history-date" data-index="${i + 1}" ${i > 2 ? "disabled" : ""} aria-label="${i + 1} октября${i > 2 ? ", нет записей" : ""}">${i + 1}</button>`).join("")}</div></div>` +
-    section("Последние дни") +
+    head("История", "Каждый день складывается в историю") +
+    (!state.adminView
+      ? `<div class="history-tools"><button data-route="statistics">${icon("chart")}Статистика</button><button data-report="export">${icon("download")}Экспорт CSV</button></div>`
+      : "") +
+    `<div class="card calendar-card"><div class="section-head" style="margin-top:0"><h2>Октябрь <span class="calendar-year">2026</span></h2><span class="badge">3 дня с записями</span></div><div class="weekdays">${["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((d) => `<span>${d}</span>`).join("")}</div><div class="calendar">${"<span></span>".repeat(3)}${Array.from({ length: 31 }, (_, i) => `<button class="${i + 1 === state.date ? "selected" : ""} ${i < 3 ? "recorded" : ""}" data-action="history-date" data-index="${i + 1}" ${i > 2 ? "disabled" : ""} aria-label="${i + 1} октября${i > 2 ? ", нет записей" : ""}">${i + 1}</button>`).join("")}</div></div>` +
+    section("Записи по дням", '<span>Октябрь</span>') +
     [3, 2, 1]
       .map(
         (d) =>
@@ -306,22 +341,19 @@ function previousDay() {
       "Обычный день · завершён",
       `<button class="icon-button" data-route="history" aria-label="Вернуться в историю">${icon("back")}</button>`,
     ) +
-    `<span class="badge">Сохранённый график дня</span>` +
+    `<div class="archive-caption">${icon("check")}День завершён<span>График сохранён вместе с записями</span></div>` +
     section("Итоги дня") +
     `<div class="metrics">${metric("sun", duration(total("nap")), "Дневной сон", "по записям")}${metric("moon", duration(total("night")), "Ночной сон", "по записям")}${metric("clock", duration(totalWake), "Бодрствование", "дневное")}</div>` +
-    section("Временная линия") +
+    section("Лента дня", '<span>Сохранённые записи</span>') +
     `<div class="timeline">${timeline}</div>`
   );
 }
 function profile() {
-  return (
-    head("Профиль", "Всё нужное — рядом") +
-    `<div class="profile-hero"><div class="avatar">А</div><h2>Анна Смирнова</h2><p class="subtle">anna@example.com</p></div><div class="card"><button class="settings-row" data-action="timezone">${icon("clock")}<span>Часовой пояс<small>Москва · UTC+3</small></span>${icon("arrow")}</button><button class="settings-row" data-route="schedules">${icon("sliders")}<span>Мои графики<small>${state.schedules.length} личных графика</small></span>${icon("arrow")}</button><button class="settings-row" data-route="login">${icon("logout")}<span>Выйти из аккаунта</span></button></div><div class="demo-box"><span class="kicker">Только в прототипе</span><p class="subtle">Переключение сценариев для просмотра дизайна</p><div class="chips"><button data-action="demo-empty">Первый день</button><button data-route="night">Ночной сон</button><button data-action="demo-reset">Пример дня</button><button data-route="admin">Администратор</button><button data-route="blocked">Блокировка</button></div></div>`
-  );
+  return head("Профиль", "Ваш малыш и ваше пространство") + section("Малыш") + childCard(true) + section("Родитель") + `<div class="account-card"><div class="avatar">А</div><div><h2>Анна Смирнова</h2><p class="subtle">anna@example.com</p></div><button class="icon-button" data-report="profile" aria-label="Изменить личные данные">${icon("arrow")}</button></div>` + section("Настройки") + `<div class="card preferences-card">${themeControls()}<button class="settings-row" data-action="timezone">${icon("clock")}<span>Часовой пояс<small>Москва · UTC+3</small></span>${icon("arrow")}</button><button class="settings-row" data-route="schedules">${icon("sliders")}<span>Мои графики<small>${state.schedules.length} личных графика</small></span>${icon("arrow")}</button></div><button class="outline-button logout-button" data-route="login">${icon("logout")}Выйти из аккаунта</button><details class="demo-box"><summary>Сценарии макета</summary><p class="subtle">Для просмотра разных состояний интерфейса</p><div class="chips"><button data-action="demo-empty">Первый день</button><button data-route="night">Ночной сон</button><button data-action="demo-reset">Пример дня</button><button data-route="admin">Администратор</button><button data-route="blocked">Блокировка</button></div></details>`;
 }
 function admin() {
   return (
-    head("Пользователи", "Администратор · 3 аккаунта") +
+    head("Пользователи", "Управление доступом") + `<div class="admin-summary"><div><strong>${state.users.length}</strong><span>аккаунта</span></div><div><strong>${state.users.filter(u=>!u.blocked).length}</strong><span>активных</span></div></div>` +
     `<div class="readonly-banner">${icon("lock")}Дневники доступны только для чтения</div><label class="subtle" for="user-search">Поиск по имени или email</label><input id="user-search" type="search" placeholder="Найти пользователя" style="margin:8px 0 18px">` +
     `<div id="users-list">${userCards()}</div>`
   );
@@ -337,19 +369,21 @@ function userCards(query = "") {
       )
       .map(
         ({ user, index }) =>
-          `<div class="card"><h3>${escapeText(user.name)}</h3><p class="subtle">${user.email}</p><p class="status ${user.blocked ? "blocked" : ""}" style="margin-top:10px">${user.blocked ? "Заблокирован" : "Активен"}</p><div class="card-actions"><button data-action="view-user" data-index="${index}">Открыть дневник</button><button class="${user.blocked ? "" : "danger"}" data-action="block-user" data-index="${index}">${user.blocked ? "Разблокировать" : "Заблокировать"}</button></div></div>`,
+          `<div class="card user-card"><div class="user-heading"><div class="avatar">${escapeText(user.name[0])}</div><div><h3>${escapeText(user.name)}</h3><p class="subtle">${escapeText(user.email)}</p></div></div><p class="status ${user.blocked ? "blocked" : ""}" style="margin-top:10px">${user.blocked ? "Заблокирован" : "Активен"}</p><div class="card-actions"><button data-action="view-user" data-index="${index}">Открыть дневник</button><button class="${user.blocked ? "" : "danger"}" data-action="block-user" data-index="${index}">${user.blocked ? "Разблокировать" : "Заблокировать"}</button></div></div>`,
       )
       .join("") || '<p class="subtle">Пользователи не найдены</p>'
   );
 }
 function auth(register = false) {
-  return `<div class="auth-art">${icon("moon")}<p>Чуть меньше подсчётов.<br>Чуть больше спокойствия.</p></div><h1 class="auth-title">${register ? "Начнём ваш<br>дневник" : "Рады видеть<br>вас снова"}</h1><p class="subtle">${register ? "Сохраняйте ритм малыша день за днём." : "Ваши графики и история уже здесь."}</p><form id="auth-form">${register ? '<label for="name">Ваше имя</label><input id="name" autocomplete="name" required placeholder="Анна">' : ""}<label for="email">Email</label><input id="email" type="email" autocomplete="email" required placeholder="anna@example.com"><label for="password">Пароль</label><input id="password" type="password" autocomplete="${register ? "new-password" : "current-password"}" minlength="8" required placeholder="Не менее 8 символов"><button class="primary" type="submit">${register ? "Создать аккаунт" : "Войти"}</button><p class="form-note">Это макет: данные никуда не отправляются.</p></form><button class="text-button add-past" data-route="${register ? "login" : "register"}">${register ? "Уже есть аккаунт? Войти" : "Впервые здесь? Зарегистрироваться"}</button>`;
+  return `<div class="auth-art"><span class="auth-moon">${icon("moon")}</span><span class="kicker">ДНЕВНИК СНА МАЛЫША</span><p>Спокойствие начинается<br>с понятного ритма.</p></div><h1 class="auth-title">${register ? "Начнём ваш<br>дневник" : "Рады видеть<br>вас снова"}</h1><p class="subtle">${register ? "Сохраняйте ритм малыша день за днём." : "Ваши графики и история уже здесь."}</p><form id="auth-form" class="auth-card">${register ? '<label for="name">Ваше имя</label><input id="name" autocomplete="name" required placeholder="Анна">' : ""}<label for="email">Email</label><input id="email" type="email" autocomplete="email" required placeholder="anna@example.com"><label for="password">Пароль</label><input id="password" type="password" autocomplete="${register ? "new-password" : "current-password"}" minlength="8" required placeholder="Не менее 8 символов"><button class="primary" type="submit">${register ? "Создать аккаунт" : "Войти"}</button><p class="form-note">Это макет: данные никуда не отправляются.</p></form><button class="text-button add-past" data-route="${register ? "login" : "register"}">${register ? "Уже есть аккаунт? Войти" : "Впервые здесь? Зарегистрироваться"}</button>`;
 }
 function render() {
   const pages = {
     day,
     schedules,
     history: historyPage,
+    statistics: statisticsPage,
+    "public-report": publicReportPage,
     night: nightPage,
     previous: previousDay,
     profile,
@@ -357,13 +391,18 @@ function render() {
     login: () => auth(),
     register: () => auth(true),
     blocked: () =>
-      `<div class="empty"><div class="empty-orbit">${icon("lock")}</div><h2>Доступ приостановлен</h2><p>Администратор заблокировал аккаунт.<br>Ваши записи сохранены.<br>Для восстановления доступа обратитесь к администратору.</p><button class="primary" data-route="login">Вернуться ко входу</button></div>`,
+      `<div class="empty welcome-card"><div class="empty-orbit">${icon("lock")}</div><h2>Доступ приостановлен</h2><p>Администратор заблокировал аккаунт.<br>Ваши записи сохранены.<br>Для восстановления доступа обратитесь к администратору.</p><button class="primary" data-route="login">Вернуться ко входу</button></div>`,
   };
-  screen.innerHTML = (pages[state.route] || day)();
-  const hidden = ["login", "register", "blocked"].includes(state.route);
+  screen.dataset.page = state.route;
+  window.mobileUI.render(screen, (pages[state.route] || day)());
+  document.querySelector(".app-header").hidden =
+    state.route === "public-report";
+  const hidden = ["login", "register", "blocked", "public-report"].includes(
+    state.route,
+  );
   document.querySelector("#navigation").hidden = hidden;
   document.querySelector("#navigation").style.display = hidden ? "none" : "";
-  document.querySelector("#navigation").innerHTML = (
+  window.mobileUI.render(document.querySelector("#navigation"), (
     state.adminView || state.route === "admin"
       ? [
           ["admin", "user", "Пользователи"],
@@ -372,6 +411,7 @@ function render() {
       : [
           ["day", "sun", "Сегодня"],
           ["history", "calendar", "История"],
+          ["statistics", "chart", "Статистика"],
           ["schedules", "sliders", "Графики"],
           ["profile", "user", "Профиль"],
         ]
@@ -380,7 +420,7 @@ function render() {
       ([route, symbol, title]) =>
         `<button data-route="${route}" ${state.route === route || (state.route === "previous" && route === "history") ? 'aria-current="page"' : ""}>${icon(symbol)}${title}</button>`,
     )
-    .join("");
+    .join(""));
 }
 function navigate(route) {
   state.route = route;
@@ -396,6 +436,74 @@ function toInput(day, minutes) {
 }
 function inputMinutes(day, value) {
   return (Date.parse(value + "Z") - Date.UTC(2026, 9, day)) / 60000;
+}
+function minutesAgoText(value) {
+  if (value === 0) return "Только что";
+  const last = value % 10;
+  const teen = value % 100 >= 11 && value % 100 <= 14;
+  return `${value} ${!teen && last === 1 ? "минуту" : !teen && last >= 2 && last <= 4 ? "минуты" : "минут"} назад`;
+}
+function startSleepSheet() {
+  if (state.adminView || state.sleeps.some(s => s.end === null)) return;
+  modal("Когда уснул?", `<form id="start-sleep-form"><input type="hidden" name="minutes-ago" value="5"><p class="wheel-hint" id="minutes-hint">Прокрутите, чтобы выбрать минуты назад</p><div class="minute-wheel-frame"><div class="minute-wheel" id="minute-wheel" role="spinbutton" tabindex="0" aria-label="Минут назад" aria-describedby="minutes-hint" aria-valuemin="0" aria-valuemax="60" aria-valuenow="5" aria-valuetext="5 минут назад">${Array.from({length:61},(_,i)=>`<div class="minute-option" aria-hidden="true" data-minute="${i}">${minutesAgoText(i)}</div>`).join("")}</div></div><p class="start-preview">Начало сна — <strong id="start-sleep-time">${time(state.now-5)}</strong></p><p id="start-sleep-error" class="error" role="alert"></p><button class="primary" type="submit">Записать сон</button><button type="button" class="text-button add-past" data-action="close">Отмена</button></form>`);
+  const wheel = document.querySelector("#minute-wheel");
+  const rowHeight = () => wheel.firstElementChild.getBoundingClientRect().height;
+  const update = () => {
+    const value = Math.max(0, Math.min(60, Math.round(wheel.scrollTop / rowHeight())));
+    wheel.setAttribute("aria-valuenow", value);
+    wheel.setAttribute("aria-valuetext", minutesAgoText(value));
+    wheel.closest("form").elements["minutes-ago"].value = value;
+    wheel.querySelectorAll(".minute-option").forEach(row => row.classList.toggle("is-selected", Number(row.dataset.minute) === value));
+    document.querySelector("#start-sleep-time").textContent = time(state.now-value);
+    document.querySelector("#start-sleep-error").textContent = "";
+  };
+  const choose = value => {
+    wheel.scrollTop = Math.max(0, Math.min(60, value)) * rowHeight();
+    update();
+  };
+  wheel.addEventListener("scroll", update, {passive:true});
+  wheel.addEventListener("click", event => {
+    const row = event.target.closest("[data-minute]");
+    if (row) choose(Number(row.dataset.minute));
+  });
+  wheel.addEventListener("keydown", event => {
+    const value = Number(wheel.getAttribute("aria-valuenow"));
+    const keys = {ArrowUp:value-1, ArrowDown:value+1, Home:0, End:60, PageUp:value-5, PageDown:value+5};
+    if (!(event.key in keys)) return;
+    event.preventDefault();
+    choose(keys[event.key]);
+  });
+  choose(5);
+  wheel.focus({preventScroll:true});
+}
+function saveSleepStart(form) {
+  if (state.adminView || state.sleeps.some(s => s.end === null)) return;
+  const minutes = Number(new FormData(form).get("minutes-ago"));
+  const start = state.now - minutes;
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 60) return;
+  if (start < (state.sleeps.at(-1)?.end ?? state.dayStart)) {
+    form.querySelector("#start-sleep-error").textContent = "Это время раньше окончания предыдущего сна. Выберите меньше минут назад.";
+    return;
+  }
+  if (state.settling && start < state.settling.start) {
+    form.querySelector("#start-sleep-error").textContent = "Сон не может начаться раньше укладывания. Выберите меньше минут назад или «Только что».";
+    return;
+  }
+  const settleStart = state.settling?.start ?? null;
+  state.settling = null;
+  if (state.sleeps.length >= 2) {
+    state.nightSettleStart = settleStart;
+    state.activeNightStart = start;
+    sheet.close();
+    navigate("night");
+  } else {
+    const id = `sleep${state.nextSleepId++}`;
+    closeWakeNote(state.sleeps.at(-1)?.id, id);
+    state.sleeps.push({id, start, end:null, kind:"nap", settleStart});
+    sheet.close();
+    render();
+  }
+  toast("Начало сна отмечено · " + time(start));
 }
 function sleepForm(id = null, finish = false) {
   if (state.adminView) return;
@@ -423,10 +531,10 @@ function sleepForm(id = null, finish = false) {
     <form id="sleep-form" data-id="${id || ""}" data-day="${context.day}" data-finish="${finish}">
     <p class="subtle">${current ? "Исправьте время — соседнее бодрствование и итоги пересчитаются. Заметки останутся на месте." : "Укажите фактическое время сна."}</p>
     <label for="sleep-kind">Тип сна</label><select id="sleep-kind" ${current ? "disabled" : ""}><option value="nap" ${current?.kind !== "night" ? "selected" : ""}>Дневной сон</option><option value="night" ${current?.kind === "night" ? "selected" : ""}>Ночной сон</option></select>
-    <label for="sleep-start">Начало сна</label><input id="sleep-start" type="datetime-local" value="${toInput(context.day, start)}" required>
+    <fieldset class="sleep-boundaries"><legend>Время сна</legend><label for="sleep-start">Начало сна</label><input id="sleep-start" type="datetime-local" value="${toInput(context.day, start)}" required>
     <label for="sleep-end">Окончание сна</label><input id="sleep-end" type="datetime-local" value="${open ? "" : toInput(context.day, end)}" ${open ? "disabled" : "required"}>
     ${current?.end === null && !finish ? '<label class="check-row"><input id="still-asleep" type="checkbox" checked>Малыш ещё спит</label>' : ""}
-    <div class="edit-summary" id="edit-summary" aria-live="polite"></div>
+    </fieldset><div class="edit-summary" id="edit-summary" aria-live="polite"></div>
     <label for="sleep-note">Заметка к сну</label><textarea id="sleep-note" maxlength="500" placeholder="Как прошёл сон?">${escapeText(state.notes[morning ? `morning${context.day}` : id] || "")}</textarea>
     <p id="form-error" class="error" role="alert"></p>
     <button type="submit" class="primary">${current ? "Сохранить изменения" : "Сохранить сон"}</button><button type="button" class="text-button add-past" data-action="close">Отмена</button>
@@ -474,7 +582,7 @@ function scheduleForm(index = null) {
   const plan = state.schedules[index ?? state.schedule];
   modal(
     index === null ? "Новый график" : "Редактор графика",
-    `<form id="schedule-form" data-index="${index ?? ""}"><label for="plan-name">Название</label><input id="plan-name" required maxlength="40" value="${index === null ? "" : escapeText(plan.name)}" placeholder="Например, выходной день">${["Бодрствование 1", "Дневной сон 1", "Бодрствование 2", "Дневной сон 2", "Бодрствование 3", "Ночной сон"].map((label, i) => `<label for="duration-${i}">${label}</label><input id="duration-${i}" name="duration" type="text" inputmode="numeric" pattern="[0-9]{1,2}:[0-5][0-9]" value="${time(plan.values[i])}" required aria-describedby="duration-help">`).join("")}<p class="form-note" id="duration-help">Длительность в формате ч:мм. Сумма может отличаться от 24 часов.</p><p id="form-error" class="error" role="alert"></p><button class="primary" type="submit">Сохранить график</button></form>`,
+    `<form id="schedule-form" data-index="${index ?? ""}"><label for="plan-name">Название</label><input id="plan-name" required maxlength="40" value="${index === null ? "" : escapeText(plan.name)}" placeholder="Например, выходной день"><fieldset class="schedule-fields"><legend>Длительность периодов</legend>${["Бодрствование 1", "Дневной сон 1", "Бодрствование 2", "Дневной сон 2", "Бодрствование 3", "Ночной сон"].map((label, i) => `<div class="schedule-field"><label for="duration-${i}">${icon(i%2 ? "moon" : "sun")}${label}</label><input id="duration-${i}" name="duration" type="text" inputmode="numeric" pattern="[0-9]{1,2}:[0-5][0-9]" value="${time(plan.values[i])}" required aria-describedby="duration-help"></div>`).join("")}</fieldset><p class="form-note" id="duration-help">Длительность в формате ч:мм. Сумма может отличаться от 24 часов.</p><p id="form-error" class="error" role="alert"></p><button class="primary" type="submit">Сохранить график</button></form>`,
   );
 }
 document.addEventListener("click", (event) => {
@@ -496,21 +604,28 @@ document.addEventListener("click", (event) => {
           .join(""),
       );
       break;
-    case "start":
-      if (state.sleeps.length >= 2) {
-        navigate("night");
-        break;
-      }
-      const newId = `sleep${state.nextSleepId++}`;
-      closeWakeNote(state.sleeps.at(-1)?.id, newId);
-      state.sleeps.push({
-        id: newId,
-        start: state.now,
-        end: null,
-        kind: "nap",
-      });
+    case "settling-start":
+      if (state.adminView || state.settling || projection().active.kind === "sleep") break;
+      state.settling = {start:state.now, startedAt:Date.now()};
       render();
-      toast("Начало сна отмечено · " + time(state.now));
+      toast("Укладывание началось · " + time(state.now));
+      break;
+    case "settling-without-sleep":
+      if (state.adminView || !state.settling) break;
+      state.now = Math.max(state.now, state.settling.start + Math.floor((Date.now()-state.settling.startedAt)/60000));
+      state.settlingAttempts.push({start:state.settling.start, end:state.now});
+      state.settling = null;
+      render();
+      toast("Укладывание завершено без сна");
+      break;
+    case "settling-cancel":
+      if (state.adminView) break;
+      state.settling = null;
+      render();
+      toast("Укладывание отменено");
+      break;
+    case "start":
+      startSleepSheet();
       break;
     case "finish":
       sleepForm(state.sleeps.at(-1).id, true);
@@ -597,6 +712,7 @@ document.addEventListener("input", (event) => {
 document.addEventListener("submit", (event) => {
   event.preventDefault();
   const form = event.target;
+  if (form.id === "start-sleep-form") saveSleepStart(form);
   if (form.id === "auth-form") {
     navigate("day");
     toast("Демонстрационный вход · данные не отправлены");
@@ -663,9 +779,9 @@ function nightPage() {
       "Ночной сон",
       saved ? "Сохранённый интервал" : "Суббота, 3 октября · пример состояния",
     ) +
-    `<section class="hero"><div class="hero-top"><span class="live-dot"></span>${saved ? "Сон завершён" : "Тихое время"}</div><div class="hero-art" aria-hidden="true"></div><h2>${saved ? "Продолжительность сна" : "Малыш спит уже"}</h2><div class="countdown">${saved ? duration(saved.minutes) : "3 <small>ч</small> 00 <small>м</small>"}</div><p class="hero-detail">${saved ? escapeText(saved.start.replace("T", " · ")) + " → " + escapeText(saved.end.replace("T", " · ")) : "С 20:10 · подъём по графику в 06:10 завтра"}</p></section>` +
-    nightEventPanel() +
-    `<button class="outline-button night-finish" data-action="night-record">${icon("sun")}${saved ? "Изменить интервал" : "Завершить ночной сон"}</button><p class="form-note">${saved ? "Отметки сохранены вместе с этим сном." : "Нажмите, когда сон закончился, например при утреннем подъёме."}</p>` +
+    `<section class="hero night-hero"><div class="hero-top"><span class="live-dot"></span>${saved ? "Сон завершён" : "Тихое время"}</div><div class="hero-art" aria-hidden="true"></div><h2>${saved ? "Продолжительность сна" : "Малыш спит уже"}</h2><div class="countdown">${saved ? duration(saved.minutes) : state.activeNightStart !== undefined ? duration(state.now-state.activeNightStart) : "3 <small>ч</small> 00 <small>м</small>"}</div><p class="hero-detail">${saved ? escapeText(saved.start.replace("T", " · ")) + " → " + escapeText(saved.end.replace("T", " · ")) : state.activeNightStart !== undefined ? "С " + time(state.activeNightStart) : "С 20:10 · подъём по графику в 06:10 завтра"}</p></section>` +
+    `${state.nightSettleStart != null ? `<p class="info-note">Укладывание · ${duration((state.activeNightStart ?? state.now)-state.nightSettleStart)} · с ${time(state.nightSettleStart)}</p>` : ""}` +
+    `<button class="outline-button night-finish" data-action="night-record">${icon("sun")}${saved ? "Изменить интервал" : "Завершить ночной сон"}</button><p class="form-note">${saved ? "Время сна сохранено." : "Нажмите, когда сон закончился, например при утреннем подъёме."}</p>` +
     section("Заметка о ночи") +
     noteButton("night") +
     `<div class="card" style="margin-top:15px"><h3>Ночь относится к 3 октября</h3><p class="subtle">Утром она останется в итогах прошедшего дня. К дневному бодрствованию ночные пробуждения не прибавляются.</p></div>`
@@ -673,7 +789,7 @@ function nightPage() {
 }
 document.addEventListener("change", (event) => {
   if (event.target.id === "sleep-kind" && event.target.value === "night") {
-    document.querySelector("#sleep-start").value = "2026-10-03T20:10";
+    document.querySelector("#sleep-start").value = toInput(3, state.activeNightStart ?? 1210);
     document.querySelector("#sleep-end").value = "2026-10-04T06:10";
   }
 });
@@ -726,10 +842,6 @@ function saveSleep(form) {
       "Окончание должно быть позже начала. Текущий сон не может начинаться в будущем.",
     );
   if (form.dataset.scope === "night" || (!id && kind === "night")) {
-    if (!eventsFit(state.nightEventId, startValue, endValue))
-      return error(
-        "За новыми границами остаются отметки пробуждений. Проверьте время или удалите ошибочные отметки в журнале.",
-      );
     state.savedNight = {
       start: startValue,
       end: endValue,
@@ -804,19 +916,12 @@ function saveSleep(form) {
       );
     if (open && next)
       return error("Незавершённый сон должен быть последней записью.");
-    if (
-      current &&
-      kind === "night" &&
-      !eventsFit(current.id, startValue, endValue)
-    )
-      return error(
-        "За новыми границами остаются отметки пробуждений. Проверьте время или исправьте журнал отметок.",
-      );
     const saved = {
       id: current?.id || `sleep${state.nextSleepId++}`,
       start,
       end,
       kind,
+      settleStart: current?.settleStart ?? null,
     };
     if (current) context.records[currentIndex] = saved;
     else {
@@ -856,73 +961,8 @@ function historySummary(day) {
   return `${duration(naps)} сна · ${duration(night.start - saved.start - naps)} бодрствования`;
 }
 
-function eventsFit(sleepId, start, end) {
-  return (state.nightEvents[sleepId] || []).every(
-    (event) => event.at >= start && event.at <= end,
-  );
-}
-function eventTime(value) {
-  return `${value.slice(11, 16)} · ${Number(value.slice(8, 10))} окт`;
-}
-function nightEventPanel() {
-  const entries = state.nightEvents[state.nightEventId] || [];
-  const last = entries.at(-1);
-  return `<section class="night-events" id="night-event-panel" aria-label="Пробуждения и плач за сон">
-    <div class="night-event-heading"><div><h2>Пробуждения и плач</h2><p>Отметки за этот сон</p></div><strong aria-label="Количество отметок">${entries.length}</strong></div>
-    ${!state.savedNight && !state.adminView ? `<button class="night-quick" data-action="night-event-add">${icon("plus")}<span>Проснулся / заплакал<small>Отметить одним нажатием</small></span></button>` : ""}
-    <p class="night-event-latest" role="status" aria-live="polite">${last ? "Последняя отметка: " + eventTime(last.at) : "Пока без отметок"}</p>
-    <div class="night-event-actions"><button class="text-button" data-action="night-event-log" data-key="${state.nightEventId}">Все отметки${icon("arrow")}</button>
-    ${!state.adminView ? `<button class="text-button" data-action="night-event-undo" data-id="${last?.id || ""}" ${last ? "" : "disabled"}>Отменить последнюю</button>` : ""}</div>
-    <p class="night-event-help">Короткий эпизод, после которого малыш снова уснул. Отметка не завершает сон и не меняет его длительность.</p>
-  </section>`;
-}
-function nightEventLog(sleepId) {
-  const entries = state.nightEvents[sleepId] || [];
-  modal(
-    "Отметки за сон",
-    `<p class="subtle">Проснулся или заплакал, затем снова уснул.<br>Всего отметок: <strong>${entries.length}</strong></p>
-    <div class="night-event-list">${entries.length ? entries.map((entry, index) => `<div class="night-event-row"><div><strong>${index + 1}. ${eventTime(entry.at)}</strong><p>Пробуждение / плач</p></div>${!state.adminView ? `<button class="text-button danger" data-action="night-event-remove" data-key="${sleepId}" data-id="${entry.id}" aria-label="Удалить отметку ${index + 1}">Удалить</button>` : ""}</div>`).join("") : '<p class="info-note">Здесь появится время каждой быстрой отметки.</p>'}</div>
-    <p class="form-note">Это количество отмеченных эпизодов, а не измеренная длительность бодрствования.</p><button class="outline-button" data-action="close">Готово</button>`,
-  );
-}
-function refreshNightPanel(focusAction) {
-  const panel = document.querySelector("#night-event-panel");
-  if (panel) {
-    panel.outerHTML = nightEventPanel();
-    document
-      .querySelector(`[data-action="${focusAction}"]:not(:disabled)`)
-      ?.focus({ preventScroll: true });
-  } else render();
-}
-document.addEventListener("click", (event) => {
-  const button = event.target.closest('[data-action^="night-event-"]');
-  if (!button) return;
-  const action = button.dataset.action;
-  if (action === "night-event-log") {
-    nightEventLog(button.dataset.key);
-    return;
-  }
-  if (state.adminView) return;
-  const sleepId = button.dataset.key || state.nightEventId;
-  const entries = state.nightEvents[sleepId] || [];
-  if (action === "night-event-add") {
-    if (state.route !== "night" || state.savedNight) return;
-    state.nightEvents[sleepId] = [
-      ...entries,
-      {
-        id: `night-event-${state.nextNightEventId++}`,
-        at: toInput(3, state.nightNow),
-      },
-    ];
-    refreshNightPanel("night-event-add");
-    toast("Отметка добавлена · сон продолжается");
-  }
-  if (action === "night-event-undo" || action === "night-event-remove") {
-    state.nightEvents[sleepId] = entries.filter(
-      (entry) => entry.id !== button.dataset.id,
-    );
-    refreshNightPanel("night-event-add");
-    if (action === "night-event-remove") nightEventLog(sleepId);
-    toast("Отметка удалена");
-  }
+document.querySelector(".skip-link").addEventListener("click", (event) => {
+  event.preventDefault();
+  screen.focus();
+  screen.scrollIntoView({ block: "start" });
 });

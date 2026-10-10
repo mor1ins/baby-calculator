@@ -1,0 +1,99 @@
+@layer theme, base, legacy, components, utilities;
+@import "tailwindcss";
+@import "konsta/react/theme.css";
+@import "../styles.css" layer(legacy);
+@import "../refinement.css" layer(legacy);
+@source "./mobile-ui.jsx";
+@theme {
+  --color-brand-primary: #665295;
+  --font-ios: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-material: "Manrope", Roboto, system-ui, sans-serif;
+}
+:root { --k-color-primary: #665295; }
+:root.dark { --k-color-primary: #c8b9f4; background: var(--paper); color: var(--ink); }
+.mobile-button { min-height:44px; height:auto; white-space:normal; gap:8px; text-align:center; }
+.mobile-button.primary { min-height:52px; width:100%; }
+.mobile-button.mobile-icon { width:44px; height:44px; padding:10px; flex-shrink:0; }
+.mobile-button svg { width:21px; height:21px; }
+.mobile-card { margin-left:0; margin-right:0; background:var(--surface); color:var(--ink); }
+.mobile-settings { margin:12px 0 24px; border-radius:20px; overflow:hidden; }
+.mobile-setting button { width:100%; text-align:left; min-height:64px; color:var(--ink); }
+.mobile-setting { background:var(--surface); }
+.mobile-setting svg { color:var(--purple); }
+.mobile-setting button > div { min-width:0; }
+.mobile-setting button div { white-space:normal; }
+.mobile-setting button svg { flex-shrink:0; }
+#sheet-content > .mobile-setting { border-radius:12px; margin-bottom:8px; }
+.bottom-nav { display:block; padding:0; }
+.mobile-tabbar { width:100%; }
+.mobile-tabbar button { min-width:0; min-height:64px; padding-left:0; padding-right:0; border-radius:0; background:transparent; }
+.mobile-tabbar button[aria-current="page"] { background:transparent; color:var(--purple); }
+.mobile-tabbar button span { white-space:nowrap; }
+.mobile-segmented { border:0; padding:4px; min-height:48px; overflow:visible; }
+.mobile-segmented button { min-height:40px; height:auto; padding:8px 3px; font-size:12px; white-space:normal; }
+.mobile-segmented button[aria-pressed="true"] { background:transparent; }
+.period-card + .mobile-segmented { margin-top:20px; }
+.chips .mobile-button { flex:1; min-width:0; padding:10px; font-size:12px; }
+.public-child-card { margin-top:0; }
+@media (prefers-reduced-motion:reduce) { *, *::before, *::after { scroll-behavior:auto!important; transition-duration:0.01ms!important; animation-duration:0.01ms!important; } }
+
+/* Preserve the layout rhythm while Konsta owns control shapes and states. */
+.mobile-card.report-metric { margin-top:0; margin-bottom:0; }
+.mobile-icon { border:0; border-radius:50%; }
+.chips .mobile-button { border:0; border-radius:12px; }
+.mobile-setting svg[viewBox="0 0 12 20"] { width:8px; height:14px; stroke:none; fill:currentColor; color:var(--muted); }
+.mobile-tabbar button { overflow:visible; flex:1 1 0; width:0; }
+.mobile-tabbar button > span { width:100%; }
+.mobile-tabbar button span { font-size:11px; }
+.mobile-tabbar button svg { width:22px; height:22px; }
+.mobile-segmented { border-radius:14px; }
+
+.bottom-nav { z-index:50; }
+.mobile-tabbar-inner { width:100%; gap:0; }
+.mobile-field { margin:16px 0; color:var(--ink); }
+.mobile-field label { margin:0; font-size:13px; color:var(--muted); }
+.mobile-field input, .mobile-field select, .mobile-field textarea { margin:0; min-width:0; width:100%; color:var(--ink); font-size:16px; }
+.mobile-field textarea { min-height:88px; }
+
+.mobile-field { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px 0; }
+.mobile-field input, .mobile-field select, .mobile-field textarea { border:0; border-radius:0; background:transparent; box-shadow:none; padding:4px 0; min-height:40px; }
+.mobile-field label { background:transparent; line-height:1.4; }
+.mobile-field:focus-within { border-color:var(--purple); }
+
+#platform-switcher { display:flex; justify-content:center; padding:0 20px 8px; }
+.platform-control { width:224px; max-width:100%; }
+.platform-control button { min-height:44px; height:auto; font-size:13px; }
+
+.share-panel { display:flex; flex-direction:column; gap:16px; }
+.share-panel p { margin:0; }
+.share-period { color:var(--muted); font-size:14px; }
+.share-description { font-size:15px; line-height:1.6; }
+.share-address { display:flex; align-items:center; gap:8px; background:var(--lavender); border:0; border-radius:12px; padding:4px 6px 4px 14px; }
+.share-address #share-url { flex:1; min-width:0; color:var(--ink); font-size:13px; line-height:20px; overflow-wrap:anywhere; user-select:all; -webkit-user-select:all; }
+.share-address .share-copy { flex-shrink:0; color:var(--purple); }
+.share-panel .primary { margin:4px 0 0; }
+.share-panel .share-preview { width:100%; margin:0; justify-content:center; }
+.share-preview svg { width:16px; height:16px; }
+.share-footer { border-top:1px solid var(--line); padding-top:12px; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.share-footer span, .share-demo { color:var(--muted); font-size:12px; text-align:center; }
+.share-footer .danger { font-size:13px; color:var(--danger); }
+
+.compact-day h2 { margin:0; font-size:16px; }
+.day-boundaries { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:8px 0 16px; color:var(--muted); font-size:13px; }
+.day-boundaries strong { color:var(--ink); font-weight:600; }
+.day-boundaries > span { margin:0 4px; }
+.compact-day .daily-sequence li { align-items:center; padding:10px 0; }
+.compact-day .daily-sequence small { display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+.compact-day .daily-sequence strong { font-weight:600; }
+.settling-summary { border-top:1px solid var(--line); padding-top:12px; font-size:13px; }
+.settling-summary > div { display:flex; justify-content:space-between; gap:12px; }
+.settling-summary strong { font-weight:600; white-space:nowrap; }
+.settling-summary p { color:var(--muted); font-size:12px; line-height:1.6; margin:4px 0 0; }
+
+.public-export-actions { margin:24px 0 28px; }
+.public-export-actions .outline-button { width:100%; margin:0; }
+.public-report-heading { margin:0 0 24px; }
+.public-report-heading .page-head { margin:0 0 12px; }
+.public-report-heading .page-head .subtle { margin-top:8px; }
+.public-report-heading .public-snapshot { margin:0; line-height:1.6; }
+.public-report-heading + .insight-tabs { margin-top:0; margin-bottom:24px; }

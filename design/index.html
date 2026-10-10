@@ -8,12 +8,17 @@
     />
     <meta name="theme-color" content="#f8f7f3" />
     <title>Тише — дневник сна малыша · дизайн</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src="prototype.js" defer></script>
+    <link rel="preload" href="fonts/Manrope-variable.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="stylesheet" href="assets/mobile-ui.css?v=48fac6c92b37" />
+    <script src="assets/mobile-ui.js?v=5f985e9469c4" defer></script>
+    <script src="reporting.js?v=6bbb5407bd36" defer></script>
+    <script src="insights.js?v=23e27a062bdc" defer></script>
+    <script src="prototype.js?v=564fadde53ed" defer></script>
   </head>
   <body>
+    <a class="skip-link" href="#screen">К содержимому</a>
     <aside class="studio" aria-label="Настройки прототипа">
-      <a class="studio-mark" href="#day">ТИШЕ <span>DESIGN STUDY / 01</span></a>
+      <a class="studio-mark" href="#day">ТИШЕ <span>DESIGN STUDY / 05</span></a>
       <h1>Маленькие сны.<br />Большое спокойствие.</h1>
       <p>
         Дневник, который помогает замечать ритм вашего малыша. Один день, один
@@ -25,9 +30,10 @@
         <button data-route="day">01 <span>Сегодня</span> ↗</button>
         <button data-route="schedules">02 <span>Мои графики</span> ↗</button>
         <button data-route="history">03 <span>История дней</span> ↗</button>
-        <button data-route="profile">04 <span>Профиль</span> ↗</button>
-        <button data-route="admin">05 <span>Администратор</span> ↗</button>
-        <button data-route="login">06 <span>Вход и регистрация</span> ↗</button>
+        <button data-route="statistics">04 <span>Статистика</span> ↗</button>
+        <button data-route="profile">05 <span>Профиль</span> ↗</button>
+        <button data-route="admin">06 <span>Администратор</span> ↗</button>
+        <button data-route="login">07 <span>Вход и регистрация</span> ↗</button>
       </div>
       <p class="studio-foot">
         390 × 844 · адаптивно от 320 px<br />Демонстрационные данные · 3
@@ -38,6 +44,7 @@
       <div class="prototype-label">
         ИНТЕРАКТИВНЫЙ МАКЕТ <span>изменения до перезагрузки</span>
       </div>
+      <div id="platform-switcher" aria-label="Оформление макета"></div>
       <header class="app-header">
         <a class="brand" href="#day" aria-label="Тише — главная"
           ><span class="brand-symbol">◔</span> тише<span class="brand-dot"
@@ -52,7 +59,7 @@
           А
         </button>
       </header>
-      <main id="screen"></main>
+      <main id="screen" tabindex="-1"></main>
       <nav
         id="navigation"
         class="bottom-nav"
