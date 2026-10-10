@@ -78,3 +78,7 @@ docker compose -p baby-prod --env-file .env --env-file current.env -f compose.ya
 Создание admin на VPS: `docker compose -p baby-dev --env-file .env --env-file current.env -f compose.yaml exec backend .venv/bin/python create_admin.py --email admin@example.com`. Для prod заменить имя проекта. Прямое создание через БД не дает роль user автоматически.
 
 При обновлении не удалять volumes. При проблемах смотреть `docker compose … ps`, `logs --tail=100 backend` и `/ready`; не публиковать строки соединения и содержимое cookie/паролей в отчетах.
+
+## Отдельное интерактивное демо
+
+Для `design/` добавлена независимая доставка на `dev.demo.tishe-doma.ru` и `demo.tishe-doma.ru`: отдельный образ GHCR, dev-релиз из main и ручное продвижение того же digest в prod. Настройка DNS/HTTPS, используемые SSH-secrets, порты 8083/8084 и откат описаны в [deploy/demo/README.md](demo/README.md). Добавление пайплайнов само по себе не настраивает новые домены на VPS.

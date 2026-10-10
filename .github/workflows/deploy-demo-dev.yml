@@ -1,0 +1,136 @@
+name: Deploy demo dev
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'design/**'
+      - 'deploy/demo/**'
+      - '.github/workflows/*demo*.yml'
+      - 'tests/package*.json'
+      - '.dockerignore'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Optional open PR from this repository; empty means main'
+        type: string
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: deploy-demo-dev
+  cancel-in-progress: false
+jobs:
+  resolve:
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.ref.outputs.sha }}
+    steps:
+      - id: ref
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ inputs.pr_number }}
+          PUSH_SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+        shell: bash
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          if [[ -n "$PR" ]]; then
+            [[ "$PR" =~ ^[0-9]+$ ]]
+            metadata=$(gh api "repos/$REPOSITORY/pulls/$PR")
+            test "$(jq -r .head.repo.full_name <<< "$metadata")" = "$REPOSITORY"
+            test "$(jq -r .state <<< "$metadata")" = open
+            sha=$(jq -r .head.sha <<< "$metadata")
+          elif [[ "$EVENT" = push ]]; then
+            sha=$PUSH_SHA
+          else
+            sha=$(gh api "repos/$REPOSITORY/commits/main" --jq .sha)
+          fi
+          [[ "$sha" =~ ^[a-f0-9]{40}$ ]]
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+  verify:
+    needs: resolve
+    uses: ./.github/workflows/demo-checks.yml
+    with:
+      sha: ${{ needs.resolve.outputs.sha }}
+  build:
+    needs: [resolve, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.digest }}
+      repository: ${{ steps.names.outputs.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - id: names
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: echo "repository=ghcr.io/${REPOSITORY,,}/demo" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        id: image
+        with:
+          context: .
+          file: deploy/demo/Dockerfile
+          push: true
+          tags: ${{ steps.names.outputs.repository }}:${{ needs.resolve.outputs.sha }}
+          build-args: REVISION=${{ needs.resolve.outputs.sha }}
+      - name: Smoke-test the immutable image
+        env:
+          IMAGE: ${{ steps.names.outputs.repository }}@${{ steps.image.outputs.digest }}
+          REVISION: ${{ needs.resolve.outputs.sha }}
+        run: bash deploy/demo/verify-image.sh "$IMAGE" "$REVISION"
+  deploy:
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Write immutable demo manifest
+        env:
+          REPOSITORY: ${{ needs.build.outputs.repository }}
+          DIGEST: ${{ needs.build.outputs.image }}
+          REVISION: ${{ needs.resolve.outputs.sha }}
+        run: printf 'DEMO_IMAGE=%s@%s\nDEMO_REVISION=%s\n' "$REPOSITORY" "$DIGEST" "$REVISION" > release.env
+      - name: Deploy demo over verified SSH
+        run: bash deploy/demo/send-release.sh
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ github.token }}
+          DEMO_REPOSITORY: ${{ needs.build.outputs.repository }}
+          DEPLOY_ENV: DEV
+          SSH_HOST: ${{ secrets.DEV_SSH_HOST }}
+          SSH_USER: ${{ secrets.DEV_SSH_USER }}
+          SSH_KEY: ${{ secrets.DEV_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEV_SSH_KNOWN_HOSTS }}
+      - name: Verify dev domain and revision
+        env:
+          REVISION: ${{ needs.resolve.outputs.sha }}
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --max-time 15 https://dev.demo.tishe-doma.ru/version.json |
+            python3 -c 'import json,sys; assert json.load(sys.stdin)["revision"] == sys.argv[1]' "$REVISION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo-dev-verified-release
+          path: release.env
+          retention-days: 30

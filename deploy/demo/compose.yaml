@@ -1,0 +1,6 @@
+services:
+  demo:
+    image: ${DEMO_IMAGE:?Set immutable demo image}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${DEMO_PORT:?Set unique demo environment port}:80"

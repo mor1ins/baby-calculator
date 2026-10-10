@@ -1,0 +1,47 @@
+name: Demo checks
+on:
+  pull_request:
+    paths:
+      - 'design/**'
+      - 'deploy/demo/**'
+      - '.github/workflows/*demo*.yml'
+      - 'tests/package*.json'
+      - '.dockerignore'
+  workflow_call:
+    inputs:
+      sha:
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            design/package-lock.json
+            tests/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: design
+      - run: npm ci && npx playwright install --with-deps chrome
+        working-directory: tests
+      - name: Check all screens and demo scenarios
+        run: |
+          node design/verify-screens.cjs
+          node design/verify-mobile-ui.cjs
+          node design/verify.cjs
+          node design/verify-start-sleep.cjs
+          node design/verify-public-statistics.cjs
+      - name: Check delivery scripts
+        run: |
+          bash -n deploy/demo/release.sh deploy/demo/send-release.sh deploy/demo/verify-image.sh
+          python3 -m unittest discover -s deploy/demo -p 'test_*.py'

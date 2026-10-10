@@ -1,0 +1,63 @@
+name: Promote demo dev to prod
+on:
+  workflow_dispatch:
+    inputs:
+      dev_run_id:
+        description: 'Successful Deploy demo dev run ID; promotes the same image digest'
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  packages: read
+concurrency:
+  group: deploy-demo-prod
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Verify source deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ inputs.dev_run_id }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          metadata=$(gh api "repos/$REPOSITORY/actions/runs/$RUN_ID")
+          test "$(jq -r .path <<< "$metadata")" = .github/workflows/deploy-demo-dev.yml
+          test "$(jq -r .conclusion <<< "$metadata")" = success
+          test "$(jq -r .head_branch <<< "$metadata")" = main
+      - uses: actions/download-artifact@v4
+        with:
+          name: demo-dev-verified-release
+          run-id: ${{ inputs.dev_run_id }}
+          github-token: ${{ github.token }}
+      - name: Resolve registry repository
+        id: names
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: echo "repository=ghcr.io/${REPOSITORY,,}/demo" >> "$GITHUB_OUTPUT"
+      - name: Promote immutable demo image
+        run: bash deploy/demo/send-release.sh
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ github.token }}
+          DEMO_REPOSITORY: ${{ steps.names.outputs.repository }}
+          DEPLOY_ENV: PROD
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+      - name: Verify prod domain and revision
+        run: |
+          revision=$(sed -n 's/^DEMO_REVISION=//p' release.env)
+          [[ "$revision" =~ ^[a-f0-9]{40}$ ]]
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --max-time 15 https://demo.tishe-doma.ru/version.json |
+            python3 -c 'import json,sys; assert json.load(sys.stdin)["revision"] == sys.argv[1]' "$revision"

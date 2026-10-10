@@ -1,0 +1,32 @@
+# Separate host Nginx site; do not replace the existing /etc/nginx/sites-available/baby.
+# First enable only this HTTP block to issue the certificate, then enable the HTTPS blocks.
+server {
+    listen 80;
+    server_name demo.tishe-doma.ru dev.demo.tishe-doma.ru;
+    location /.well-known/acme-challenge/ { root /var/www/acme; }
+    location / { return 301 https://$host$request_uri; }
+}
+server {
+    listen 443 ssl;
+    server_name dev.demo.tishe-doma.ru;
+    ssl_certificate /etc/letsencrypt/live/demo.tishe-doma.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/demo.tishe-doma.ru/privkey.pem;
+    location / {
+        proxy_pass http://127.0.0.1:8083;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $remote_addr;
+    }
+}
+server {
+    listen 443 ssl;
+    server_name demo.tishe-doma.ru;
+    ssl_certificate /etc/letsencrypt/live/demo.tishe-doma.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/demo.tishe-doma.ru/privkey.pem;
+    location / {
+        proxy_pass http://127.0.0.1:8084;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $remote_addr;
+    }
+}
