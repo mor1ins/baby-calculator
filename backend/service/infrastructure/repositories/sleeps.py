@@ -5,6 +5,7 @@ from uuid import uuid4
 from service.contracts.operations import AppError, Operation, OperationResult
 from service.infrastructure.repositories.common import check_version
 from service.infrastructure.repositories.days import DaysRepository
+from service.infrastructure.repositories.settling import SettlingRepository
 from service.infrastructure.repositories.sleep_rules import sleep_cycle, sleep_times
 from service.infrastructure.repositories.targets import TargetsRepository
 
@@ -14,8 +15,10 @@ def public_sleep(sleep: dict[str, Any]) -> dict[str, Any]:
 
 
 class SleepsRepository:
-    def __init__(self, days: DaysRepository, targets: TargetsRepository, clock_skew_tolerance_minutes: int) -> None:
+    def __init__(self, days: DaysRepository, targets: TargetsRepository, clock_skew_tolerance_minutes: int,
+                 settling: SettlingRepository) -> None:
         self.days = days
+        self._settling = settling
         self._targets = targets
         self._clock_skew_tolerance_minutes = clock_skew_tolerance_minutes
 
@@ -38,6 +41,9 @@ class SleepsRepository:
         sleep_times(sleep, op.now, self._clock_skew_tolerance_minutes)
         sleep_cycle(sleep, await self.days.sleeps(diary["id"]), day["timezone"])
         await self._save(sleep, day, op, current)
+        if current is None and sleep["end"] is None:
+            await self._settling.attach(diary["id"], sleep["id"], sleep["start"])
+        await self._settling.reconcile(sleep["id"], sleep["start"], sleep["day"])
         await self._targets.reconcile(diary, sleep["id"], op.now)
         self.days.dirty.add(day["id"])
         if current:
@@ -87,6 +93,7 @@ class SleepsRepository:
             raise AppError(409, "sleep_has_events", "Сначала удалите ночные отметки этого сна")
         await self.days.records.rows("UPDATE sleep_intervals SET deleted_at=:now WHERE id=:id",
                                      id=sleep["id"], now=op.now)
+        await self._settling.reconcile(sleep["id"], None, sleep["day"])
         self.days.dirty.add(sleep["day_id"])
         await self._targets.reconcile(diary, sleep["id"], op.now)
         return OperationResult(status=204)

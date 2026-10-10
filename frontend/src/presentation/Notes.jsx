@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { useState } from 'react';
 
 import { ActionButton, Form } from './Forms.jsx';
+import { Icon } from './Icon.jsx';
 import { newId } from './identifiers.js';
 import { intervalNames } from './labels.js';
 import { Sheet } from './Sheet.jsx';
@@ -16,14 +17,19 @@ export function Note({ interval, readOnly = false }) {
     if (readOnly) return comment ? <p className="note">{comment.text}</p> : null;
     return (
         <div>
-            {comment && <p className="note">{comment.text}</p>}
-            <button type="button" className="text-button" onClick={() => setEditing(!editing)}>
-                {noteLabel(editing, comment)}
+            <button
+                type="button"
+                className="note-button"
+                aria-label={noteLabel(editing, comment)}
+                onClick={() => setEditing(!editing)}
+            >
+                <Icon name="note" />
+                {comment?.text || 'Добавить заметку'}
             </button>
             {editing && (
                 <Sheet title="Заметка к интервалу" close={() => setEditing(false)}>
                     <Form
-                        fields={[{ name: 'text', label: 'Заметка', required: true, maxLength: 1000 }]}
+                        fields={[{ name: 'text', label: 'Заметка', type: 'textarea', required: true, maxLength: 1000 }]}
                         initial={initial}
                         submit={async ({ text }) => {
                             await mutation.mutateAsync({

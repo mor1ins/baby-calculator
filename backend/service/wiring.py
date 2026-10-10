@@ -9,10 +9,13 @@ from service.infrastructure.repositories.admin import AdminRepository
 from service.infrastructure.repositories.comments import CommentsRepository
 from service.infrastructure.repositories.common import Records
 from service.infrastructure.repositories.days import DaysRepository
+from service.infrastructure.repositories.details import DetailsRepository
 from service.infrastructure.repositories.diaries import SqlDiariesRepository
 from service.infrastructure.repositories.events import EventsRepository
 from service.infrastructure.repositories.identity import IdentityRepository
+from service.infrastructure.repositories.reports import ReportsRepository
 from service.infrastructure.repositories.schedules import SchedulesRepository
+from service.infrastructure.repositories.settling import SettlingRepository
 from service.infrastructure.repositories.sleeps import SleepsRepository
 from service.infrastructure.repositories.store import RepositoryScope
 from service.infrastructure.repositories.targets import TargetsRepository
@@ -38,11 +41,19 @@ def repository_scope(transaction: Transaction, passwords: Passwords,
     )
     schedules = SchedulesRepository(records, identity)
     days = DaysRepository(records, schedules)
-    sleeps = SleepsRepository(days, TargetsRepository(days), clock_skew_tolerance_minutes)
+    settling = SettlingRepository(days)
+    details = DetailsRepository(days)
+    reports = ReportsRepository(days)
+    sleeps = SleepsRepository(days, TargetsRepository(days), clock_skew_tolerance_minutes, settling)
     events = EventsRepository(sleeps, clock_skew_tolerance_minutes)
     comments = CommentsRepository(sleeps, events)
     admin = AdminRepository(records, identity)
     return RepositoryScope(records, identity, {
+        "getChild": details.child, "updateChild": details.child, "updateDayContext": details.context,
+        "createChange": details.change, "deleteChange": details.change,
+        "startSettling": settling.write, "finishSettling": settling.write, "cancelSettling": settling.write,
+        "getReport": reports.report, "createShare": reports.create_share, "listShares": reports.shares,
+        "revokeShare": reports.shares, "getPublicReport": reports.public,
         "updateProfile": schedules.profile, "listSchedules": schedules.list_schedules,
         "adminListSchedules": schedules.list_schedules, "createSchedule": schedules.create,
         "updateSchedule": schedules.update, "setDaySchedule": days.assign_schedule,

@@ -67,9 +67,11 @@ def calculate_day(document: dict[str, Any], now: datetime) -> dict[str, Any]:
     if orphaned:
         issues.append("unassigned_comments")
     result = {key: document[key] for key in ("date", "version", "timezone", "schedule")}
-    result.update(as_of=now, complete=bool(document["previous_night"] and final_night and all(
-        sleep["end"] is not None for sleep in document["sleeps"])), metrics=totals, timeline=entries,
-        orphaned_comments=orphaned, issues=issues)
+    complete = bool(document["previous_night"] and final_night and all(
+        sleep["end"] is not None for sleep in document["sleeps"]))
+    result.update(context=document.get("context", {}), settling=document.get("settling", []),
+                  as_of=now, complete=complete, metrics=totals, timeline=entries,
+                  orphaned_comments=orphaned, issues=issues)
     add_forecast(document, entries, issues, now)
     result["sleeps"] = [_public(sleep) for sleep in document["sleeps"]]
     result["previous_night"] = _public(document["previous_night"]) if document["previous_night"] else None

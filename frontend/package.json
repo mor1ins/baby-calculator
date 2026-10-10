@@ -19,10 +19,14 @@
         "build": "vite build",
         "preview": "vite preview --host 127.0.0.1",
         "test:architecture": "node --test tests/architecture/*.test.js",
-        "test:runtime": "vitest run"
+        "test:runtime": "vitest run",
+        "styles": "tailwindcss -i src/presentation/styles.css -o public/app.css --minify",
+        "prebuild": "npm run styles",
+        "predev": "npm run styles"
     },
     "devDependencies": {
         "@eslint/js": "^9.39.5",
+        "@tailwindcss/cli": "^4.1.18",
         "@testing-library/jest-dom": "^7.0.1",
         "@testing-library/react": "^16.3.3",
         "@testing-library/user-event": "^14.6.7",
@@ -40,12 +44,14 @@
         "prettier": "^3.9.9",
         "stylelint": "^17.16.0",
         "stylelint-config-standard": "^40.0.0",
+        "tailwindcss": "^4.1.18",
         "vite": "^8.3.2",
         "vitest": "^5.0.3"
     },
     "dependencies": {
         "@js-temporal/polyfill": "^0.5.1",
         "@tanstack/react-query": "^5.104.1",
+        "konsta": "^5.5.0",
         "prop-types": "^15.8.1",
         "react": "^19.3.0",
         "react-dom": "^19.3.0",

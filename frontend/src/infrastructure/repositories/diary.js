@@ -1,5 +1,18 @@
 const key = (value) => encodeURIComponent(value);
 const routes = {
+    child: () => ['GET', '/child'],
+    updateChild: () => ['PUT', '/child'],
+    report: () => ['GET', '/statistics'],
+    publicReport: (action) => ['GET', `/public/reports/${key(action.key)}`],
+    shares: () => ['GET', '/shares'],
+    createShare: () => ['POST', '/shares'],
+    revokeShare: (action) => ['DELETE', `/shares/${key(action.key)}`],
+    startSettling: () => ['POST', '/settling'],
+    finishSettling: (action) => ['PATCH', `/settling/${key(action.key)}`],
+    cancelSettling: (action) => ['DELETE', `/settling/${key(action.key)}`],
+    dayContext: (action) => ['PUT', `/days/${key(action.key)}/context`],
+    createChange: () => ['POST', '/changes'],
+    deleteChange: (action) => ['DELETE', `/changes/${key(action.key)}`],
     login: () => ['POST', '/session'],
     register: () => ['POST', '/register'],
     logout: () => ['DELETE', '/session'],

@@ -607,8 +607,359 @@ paths:
       security:
       - sessionCookie: []
         csrfToken: []
+  /child:
+    get:
+      operationId: getChild
+      summary: getChild
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChildResult'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+      - sessionCookie: []
+    put:
+      operationId: updateChild
+      summary: updateChild
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChildResult'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      parameters:
+      - &id001
+        $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChildProfile'
+  /days/{date}/context:
+    put:
+      operationId: updateDayContext
+      summary: updateDayContext
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      parameters:
+      - in: path
+        name: date
+        required: true
+        schema:
+          type: string
+          format: date
+      - *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayContext'
+  /settling:
+    post:
+      operationId: startSettling
+      summary: startSettling
+      responses:
+        default:
+          $ref: '#/components/responses/Error'
+        '201':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettlingStart'
+  /settling/{attempt_id}:
+    patch:
+      operationId: finishSettling
+      summary: finishSettling
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      parameters:
+      - in: path
+        name: attempt_id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+    delete:
+      operationId: cancelSettling
+      summary: cancelSettling
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      parameters:
+      - in: path
+        name: attempt_id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+  /changes:
+    post:
+      operationId: createChange
+      summary: createChange
+      responses:
+        default:
+          $ref: '#/components/responses/Error'
+        '201':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeWrite'
+  /changes/{change_id}:
+    delete:
+      operationId: deleteChange
+      summary: deleteChange
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      parameters:
+      - in: path
+        name: change_id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+  /statistics:
+    get:
+      operationId: getReport
+      summary: getReport
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/From'
+      - $ref: '#/components/parameters/To'
+  /shares:
+    post:
+      operationId: createShare
+      summary: createShare
+      responses:
+        default:
+          $ref: '#/components/responses/Error'
+        '201':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportPeriod'
+    get:
+      operationId: listShares
+      summary: listShares
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+      - sessionCookie: []
+  /shares/{share_id}:
+    delete:
+      operationId: revokeShare
+      summary: revokeShare
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      parameters:
+      - in: path
+        name: share_id
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /public/reports/{token}:
+    get:
+      operationId: getPublicReport
+      summary: getPublicReport
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: '#/components/responses/Error'
+      security: []
+      parameters:
+      - in: path
+        name: token
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
 components:
   schemas:
+    ChildProfile:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          maxLength: 80
+        sex:
+          type: string
+          maxLength: 20
+        context:
+          type: string
+          maxLength: 2000
+        premature:
+          type: string
+          maxLength: 200
+        feeding:
+          type: string
+          maxLength: 500
+        environment:
+          type: string
+          maxLength: 1000
+        health:
+          type: string
+          maxLength: 1000
+        born:
+          anyOf:
+          - &schema_id002
+            type: string
+            format: date
+          - type: 'null'
+        photo:
+          type: string
+          maxLength: 400000
+          pattern: ^(data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+)?$
+      required: &schema_id001 []
+    ChildResult:
+      type: object
+      additionalProperties: false
+      properties:
+        profile:
+          $ref: '#/components/schemas/ChildProfile'
+        version:
+          type: integer
+          minimum: 0
+      required:
+      - profile
+      - version
+    DayContext:
+      type: object
+      additionalProperties: false
+      properties:
+        note:
+          type: string
+          maxLength: 500
+        help:
+          type: string
+          maxLength: 500
+        mood:
+          type: string
+          maxLength: 500
+      required: *schema_id001
+    ReportPeriod:
+      type: object
+      additionalProperties: false
+      properties:
+        from: *schema_id002
+        to: *schema_id002
+      required:
+      - from
+      - to
+    ChangeWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        date: *schema_id002
+        text:
+          type: string
+          maxLength: 500
+      required:
+      - date
+      - text
+    SettlingStart:
+      type: object
+      additionalProperties: false
+      properties:
+        day: *schema_id002
+      required:
+      - day
     Error:
       type: object
       additionalProperties: false
@@ -783,6 +1134,9 @@ components:
           type: string
           minLength: 1
           maxLength: 80
+        description:
+          type: string
+          maxLength: 500
         segments:
           type: array
           items:
@@ -800,6 +1154,9 @@ components:
           type: string
           minLength: 1
           maxLength: 80
+        description:
+          type: string
+          maxLength: 500
         segments:
           type: array
           items:
@@ -824,6 +1181,9 @@ components:
           type: string
           minLength: 1
           maxLength: 80
+        description:
+          type: string
+          maxLength: 500
         segments:
           type: array
           items:
@@ -849,6 +1209,9 @@ components:
           type: string
           minLength: 1
           maxLength: 80
+        description:
+          type: string
+          maxLength: 500
         segments:
           type: array
           items:
@@ -1229,6 +1592,12 @@ components:
       type: object
       additionalProperties: false
       properties:
+        context:
+          $ref: '#/components/schemas/DayContext'
+        settling:
+          type: array
+          items:
+            type: object
         date:
           type: string
           format: date

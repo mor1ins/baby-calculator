@@ -127,4 +127,4 @@ def test_local_schema_contains_contract_routes(container: Container) -> None:
     assert response.status_code == 200
     paths = set(response.json()["paths"])
     assert {"/health", "/ready", "/api/v1/session", "/api/v1/sleeps"} <= paths
-    assert len(paths) == 19
+    assert len(paths) == 29

@@ -29,7 +29,7 @@ test.beforeEach(async ({ context, page }) => {
 
 async function assertCssOnly(page) {
   await expect(
-    page.locator("[style], svg[fill], svg[stroke], svg [fill], svg [stroke]"),
+    page.locator("[style], svg[fill]:not([fill=currentcolor i]), svg[stroke]:not([stroke=currentcolor i]), svg [fill]:not([fill=currentcolor i]), svg [stroke]:not([stroke=currentcolor i])"),
   ).toHaveCount(0);
   expect(
     await page.evaluate(
@@ -46,13 +46,14 @@ for (const [mode, label] of [
     page,
   }) => {
     await page.goto("/profile");
+  await page.getByRole("button", {name:/Тема оформления/}).click();
     await page.getByRole("radio", { name: label, exact: true }).check();
     await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
     for (const width of [320, 390, 768]) {
       await page.setViewportSize({ width, height: 844 });
       for (const path of ["/profile", "/", "/schedules", "/history"]) {
         await page.goto(path);
-        await expect(page.locator(".session-state")).toContainText("Анна");
+        await expect(page.locator("main h1")).toBeVisible();
         await assertCssOnly(page);
         await expect(page.locator("html")).toHaveCSS("color-scheme", mode);
         await page.screenshot({
@@ -63,7 +64,7 @@ for (const [mode, label] of [
     }
     await page.goto("/schedules");
     await page
-      .getByRole("button", { name: "Изменить график", exact: true })
+      .getByRole("button", { name: "Настроить график", exact: true })
       .click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await assertCssOnly(page);
@@ -86,16 +87,19 @@ test("auto tracks the OS, manual choice survives reload and synchronizes other t
 }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/profile");
+  await page.getByRole("button", {name:/Тема оформления/}).click();
   await expect(page.getByRole("radio", { name: "Авто" })).toBeChecked();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.emulateMedia({ colorScheme: "light" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByRole("radio", { name: "Тёмная" }).check();
   await page.reload();
+  await page.getByRole("button", {name:/Тема оформления/}).click();
   await expect(page.getByRole("radio", { name: "Тёмная" })).toBeChecked();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   const second = await context.newPage();
   await second.goto("/profile");
+  await second.getByRole("button", {name:/Тема оформления/}).click();
   await second.getByRole("radio", { name: "Светлая" }).check();
   await expect(page.getByRole("radio", { name: "Светлая" })).toBeChecked();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -125,6 +129,7 @@ test("saved dark preference is applied before first paint even with a delayed en
     },
   );
   await page.goto("/profile");
+  await page.getByRole("button", {name:/Тема оформления/}).click();
   await expect(page.getByRole("radio", { name: "Тёмная" })).toBeChecked();
   await expect
     .poll(() => page.evaluate(() => window.themePaints.length))
