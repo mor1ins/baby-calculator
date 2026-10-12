@@ -180,6 +180,7 @@ function DayDetail({ row }) {
                 Подъём <strong>{minuteTime(row.morning)}</strong>
                 <span aria-hidden="true">·</span>Ночь <strong>{minuteTime(row.nightStart)}</strong>
             </p>
+            <DayCalculations row={row} />
             <ol className="daily-sequence">
                 {row.timeline
                     .filter((entry) => entry.kind !== 'night')
@@ -207,120 +208,43 @@ function DayDetail({ row }) {
                         </li>
                     ))}
             </ol>
-            <div className="settling-summary">
-                <div>
-                    <span>Укладывание</span>
-                    <strong>{reportDuration(row.settling)}</strong>
-                </div>
-                <p>
-                    {row.settling === null
-                        ? 'Пока не записано'
-                        : `${minuteTime(row.settleStart)}–${minuteTime(row.nightStart)} · ${row.settlingHelp} · ${row.mood}`}
+            {row.settleStart !== null && row.settleStart !== undefined && (
+                <p className="subtle">
+                    Укладывание {minuteTime(row.settleStart)}–{minuteTime(row.nightStart)}
+                    {[row.settlingHelp, row.mood]
+                        .filter(Boolean)
+                        .map((detail) => ` · ${detail}`)
+                        .join('')}
                 </p>
-            </div>
+            )}
             {row.context && <p className="info-note">{row.context}</p>}
         </Card>
     );
 }
 DayDetail.propTypes = { row: PropTypes.object.isRequired };
 
-export function Comparison({ report }) {
-    const [selected, setSelected] = useState(null);
-    const [month, setMonth] = useState(report.to.slice(0, 7));
-    const dates = report.rows.filter((item) => item.date.startsWith(month));
-    const row = dates.find((item) => item.date === selected) || dates.at(-1);
-    const first = month + '-01';
-    const offset = (new Date(first + 'T12:00:00Z').getUTCDay() + 6) % 7;
-    const count = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0)).getUTCDate();
-    const shift = (delta) => setMonth(dateShift(first, delta < 0 ? -1 : count).slice(0, 7));
+function DayCalculations({ row }) {
     return (
-        <>
-            <Section title="День → следующая ночь" />
-            <p className="subtle">
-                Что предшествовало каждой ночи. Сравнивайте дни без автоматических выводов о причинах.
-            </p>
-            <Card className="compare-calendar" aria-label="Выбор дня для сравнения">
-                <div className="compare-month">
-                    <button
-                        type="button"
-                        className="icon-button"
-                        aria-label="Предыдущий месяц"
-                        disabled={month <= report.from.slice(0, 7)}
-                        onClick={() => shift(-1)}
-                    >
-                        ‹
-                    </button>
-                    <h3>
-                        {new Date(first + 'T12:00:00Z').toLocaleDateString('ru', {
-                            month: 'long',
-                            year: 'numeric',
-                            timeZone: 'UTC',
-                        })}
-                    </h3>
-                    <button
-                        type="button"
-                        className="icon-button"
-                        aria-label="Следующий месяц"
-                        disabled={month >= report.to.slice(0, 7)}
-                        onClick={() => shift(1)}
-                    >
-                        ›
-                    </button>
-                </div>
-                <div className="weekdays">
-                    {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day) => (
-                        <span key={day}>{day}</span>
-                    ))}
-                </div>
-                <div className="compare-calendar-grid">
-                    {Array.from({ length: offset }, (_, index) => (
-                        <span key={`blank${index}`} />
-                    ))}
-                    {Array.from({ length: count }, (_, index) => {
-                        const date = dateShift(first, index),
-                            recorded = dates.some((item) => item.date === date);
-                        return (
-                            <button
-                                type="button"
-                                key={date}
-                                disabled={!recorded}
-                                aria-pressed={date === row?.date}
-                                aria-label={shortDate(date)}
-                                onClick={() => setSelected(date)}
-                            >
-                                {index + 1}
-                                {recorded && <i aria-hidden="true" />}
-                            </button>
-                        );
-                    })}
-                </div>
-                <p className="form-note">Доступны дни с записями за выбранный период.</p>
-            </Card>
-            {row ? (
-                <section className="compare-day">
-                    <h3>{shortDate(row.date)} · день → следующая ночь</h3>
-                    <dl>
-                        {[
-                            ['Дневной сон', reportDuration(row.nap)],
-                            ['Последнее бодрствование', reportDuration(row.lastWake)],
-                            ['Укладывание', reportDuration(row.settling)],
-                            ['Засыпание на ночь', minuteTime(row.nightStart)],
-                            ['Ночной интервал', reportDuration(row.night)],
-                        ].map(([label, value]) => (
-                            <div key={label}>
-                                <dt>{label}</dt>
-                                <dd>{value}</dd>
-                            </div>
-                        ))}
-                    </dl>
-                </section>
-            ) : (
-                <p className="info-note">В этом месяце нет записей за выбранный период.</p>
-            )}
-        </>
+        <section className="compare-day" aria-label="Расчёты дня и следующей ночи">
+            <h3>День → следующая ночь</h3>
+            <dl>
+                {[
+                    ['Дневной сон', reportDuration(row.nap)],
+                    ['Последнее бодрствование', reportDuration(row.lastWake)],
+                    ['Укладывание', reportDuration(row.settling)],
+                    ['Засыпание на ночь', minuteTime(row.nightStart)],
+                    ['Ночной интервал', reportDuration(row.night)],
+                ].map(([label, value]) => (
+                    <div key={label}>
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                    </div>
+                ))}
+            </dl>
+        </section>
     );
 }
-Comparison.propTypes = Overview.propTypes;
+DayCalculations.propTypes = DayDetail.propTypes;
 
 export function Changes({ report, readOnly }) {
     const [editing, setEditing] = useState(false);

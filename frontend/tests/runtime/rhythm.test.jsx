@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 
 import { Rhythm } from '../../src/presentation/ReportPanels.jsx';
@@ -15,7 +16,7 @@ test('uses a shared compact scale without hiding early mornings or late bedtimes
     expect(rhythmScale([])).toEqual({ from: 330, to: 1230 });
 });
 
-test('draws the incoming night and makes a one-minute settling visible', () => {
+test('draws the incoming night and updates calculations when another day is selected', async () => {
     const { container } = render(<Rhythm report={{ rows, from: '2026-10-01', calendar_days: 2 }} />);
     expect(screen.getByText('05:00 → 21:00')).toBeVisible();
     expect(container.querySelectorAll('.rhythm-svg .night')).toHaveLength(4);
@@ -26,4 +27,9 @@ test('draws the incoming night and makes a one-minute settling visible', () => {
         .map(Number);
     expect(right - left).toBeCloseTo(1.6);
     expect(screen.getByText(/Подъём/)).toBeVisible();
+    const calculations = within(screen.getByRole('region', { name: 'Расчёты дня и следующей ночи' }));
+    expect(calculations.getByText('20:00')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Расписание 01.10' }));
+    expect(calculations.getByText('20:30')).toBeVisible();
+    expect(calculations.queryByText('20:00')).not.toBeInTheDocument();
 });

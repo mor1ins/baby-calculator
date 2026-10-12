@@ -9,13 +9,13 @@ import { Icon } from './Icon.jsx';
 import { Button, Card } from './Mobile.jsx';
 import { PageHeading } from './PageHeading.jsx';
 import { PeriodForm, periodLabel, ReportActions } from './ReportActions.jsx';
-import { Changes, Comparison, Overview, Rhythm } from './ReportPanels.jsx';
+import { Changes, Overview, Rhythm } from './ReportPanels.jsx';
 import { dateShift, today } from './time.js';
 import { useRead, useWrite } from './useApi.js';
 
 function ReportContent({ report, readOnly = false }) {
     const [tab, setTab] = useState('overview');
-    const Component = { overview: Overview, rhythm: Rhythm, compare: Comparison, changes: Changes }[tab];
+    const Component = { overview: Overview, rhythm: Rhythm, changes: Changes }[tab];
     return (
         <>
             <Segmented
@@ -28,7 +28,6 @@ function ReportContent({ report, readOnly = false }) {
                 {[
                     ['overview', 'Обзор'],
                     ['rhythm', 'Ритм суток'],
-                    ['compare', 'День → ночь'],
                     ['changes', 'Изменения'],
                 ].map(([key, label]) => (
                     <SegmentedButton

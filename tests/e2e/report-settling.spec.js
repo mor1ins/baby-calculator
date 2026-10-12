@@ -40,7 +40,7 @@ test('settling, child, report tabs, anonymous Excel and share revocation',async(
   await page.emulateMedia({colorScheme:theme});
   for(const width of [320,390,768]){
    await page.setViewportSize({width,height:844});
-   for(const name of ['Ритм суток','День → ночь','Изменения','Обзор']){
+   for(const name of ['Ритм суток','Изменения','Обзор']){
     await page.getByRole('button',{name,exact:true}).click();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${theme}/${width}/${name}`);
     await page.screenshot({path:testInfo.outputPath(`${theme}-${width}-${name}.png`),fullPage:true});
