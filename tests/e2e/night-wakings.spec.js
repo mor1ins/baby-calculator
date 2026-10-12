@@ -117,8 +117,8 @@ test('manual night waking bounds can be corrected and deleted from the timeline'
     const following = localDate(new Date(Date.now() - 86400000));
     await write('/sleeps', { day, kind: 'night', start: `${day}T21:00:00+03:00`, end: `${following}T07:00:00+03:00` });
     await page.goto(`/?date=${day}`);
-    await page.getByRole('button', { name: 'Добавить прошедший сон', exact: true }).click();
-    await page.getByLabel('Вид сна').selectOption('night_awake');
+    await page.getByRole('button', { name: 'Добавить событие', exact: true }).click();
+    await page.getByLabel('Тип события').selectOption('night_awake');
     await page.getByLabel('Начало ночного бодрствования', { exact: true }).fill(`${day}T22:00`);
     await page.getByLabel('Конец ночного бодрствования (пусто — ещё бодрствует)').fill(`${day}T22:30`);
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();

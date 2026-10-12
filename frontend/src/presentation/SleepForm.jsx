@@ -21,7 +21,7 @@ export function SleepForm({ sleep, day, close, kind = 'nap' }) {
         close();
     };
     return (
-        <Sheet title={waking ? 'Ночное бодрствование' : sleep ? 'Исправить сон' : 'Записать сон'} close={close}>
+        <Sheet title={waking ? 'Ночное бодрствование' : sleep ? 'Исправить сон' : 'Добавить событие'} close={close}>
             <p className="form-note">Время: {zone}</p>
             <Form
                 fields={fields}
@@ -78,11 +78,11 @@ function sleepFields(sleep, waking) {
         { name: 'day', label: 'День цикла', type: 'date', required: true, disabled: Boolean(sleep && waking) },
         {
             name: 'kind',
-            label: 'Вид сна',
+            label: 'Тип события',
             disabled: Boolean(sleep && waking),
             options: [
-                ['nap', 'Дневной'],
-                ['night', 'Ночной'],
+                ['night', 'Ночной сон'],
+                ['nap', 'Дневной сон'],
                 ...(!sleep || waking ? [['night_awake', 'Ночное бодрствование']] : []),
             ],
         },

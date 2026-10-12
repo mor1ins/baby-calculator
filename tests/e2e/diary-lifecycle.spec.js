@@ -10,7 +10,7 @@ async function diary(context) {
     return { ...api, day };
 }
 async function addNap(page, day, start = '10:00', end = '11:00') {
-    await page.getByRole('button', { name: 'Добавить прошедший сон', exact: true }).click();
+    await page.getByRole('button', { name: 'Добавить событие', exact: true }).click();
     await page.getByLabel('Начало сна', { exact: true }).fill(`${day}T${start}`);
     await page.getByLabel('Конец сна (пусто — ещё спит)').fill(`${day}T${end}`);
     await save(page);

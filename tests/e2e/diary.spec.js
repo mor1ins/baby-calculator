@@ -26,15 +26,15 @@ test('mobile registration, schedule, sleep, comment, history and logout persist'
 
     await page.getByRole('button', { name: 'Добавить ночной сон' }).click();
     await page.getByLabel('День цикла', { exact: true }).fill(previousDay);
-    await page.getByLabel('Вид сна').selectOption('night');
+    await page.getByLabel('Тип события').selectOption('night');
     await page.getByLabel('Начало сна').fill(`${previousDay}T21:00`);
     await page.getByLabel('Конец сна (пусто — ещё спит)').fill(`${sleepDay}T06:30`);
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Записать сон' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Добавить событие' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Выбрать дату' }).click();
     await page.getByRole('textbox', { name: 'День дневника', exact: true }).fill(sleepDay);
     await expect(page.locator('.previous-night-context')).toContainText('21:00 — 06:30');
-    await page.getByRole('button', { name: 'Добавить прошедший сон' }).click();
+    await page.getByRole('button', { name: 'Добавить событие' }).click();
     await page.getByLabel('Начало сна').fill(`${sleepDay}T10:50`);
     await page.getByLabel('Конец сна (пусто — ещё спит)').fill(`${sleepDay}T12:10`);
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();

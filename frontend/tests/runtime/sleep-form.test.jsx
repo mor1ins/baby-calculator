@@ -46,7 +46,7 @@ it('records explicit waking boundaries using the new type in the sleep form', as
             <SleepForm day={{ date: '2026-10-03', timezone: 'Europe/Moscow', sleeps: [] }} close={vi.fn()} />
         </Providers>,
     );
-    await userEvent.selectOptions(screen.getByLabelText('Вид сна'), 'night_awake');
+    await userEvent.selectOptions(screen.getByLabelText('Тип события'), 'night_awake');
     fireEvent.change(screen.getByLabelText('Начало ночного бодрствования'), {
         target: { value: '2026-10-04T02:00' },
     });

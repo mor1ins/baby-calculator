@@ -374,7 +374,7 @@ function DayActions({ day, readOnly, edit }) {
             {
                 <Button type="button" className="text-button add-past" onClick={() => edit(null)}>
                     <Icon name="plus" />
-                    Добавить прошедший сон
+                    Добавить событие
                 </Button>
             }
         </>
