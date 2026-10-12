@@ -102,3 +102,30 @@ def test_settling_boundaries_remain_independent(client: TestClient) -> None:
     assert edited["end_at"] == bounds["end"]
     assert client.put('/api/v1' + path, json={**bounds, "end": "2026-10-04T11:55:00Z"},
                       headers={"If-Match": f'"{edited["version"]}"'}).status_code == 422
+
+
+@pytest.mark.parametrize("waking_state", ["none", "resumed", "awake"])
+@pytest.mark.parametrize("end,starts_day", [("2026-10-03T20:30:00Z", False), ("2026-10-03T21:00:00Z", True)])
+def test_finish_night_uses_local_cycle_date(client: TestClient, waking_state: str,
+                                            end: str, starts_day: bool) -> None:
+    parent = night(client, None)
+    waking = None
+    if waking_state != "none":
+        waking = write(client, "POST", "/night-wakings",
+                       waking_values("19:00", "19:20" if waking_state == "resumed" else None))
+    closed = write(client, "PATCH", f'/sleeps/{parent["id"]}', {"end": end}, parent["version"])
+    assert closed["start"] == parent["start"]
+    assert closed["ends_night"] is starts_day
+    if waking:
+        saved = closed["wakings"][0]
+        assert saved["start"] == waking["start"]
+        assert saved["end"] == (waking["end"] or end)
+    day = client.get("/api/v1/days/2026-10-03").json()
+    assert day["complete"] is starts_day
+    assert day["metrics"]["day_awake_seconds"] == 50400
+    morning = client.get("/api/v1/days/2026-10-04").json()
+    assert bool(morning["previous_night"]) is starts_day
+    if not starts_day:
+        continued = write(client, "POST", "/sleeps", {"day": parent["day"], "kind": "night",
+                                                      "start": end, "end": "2026-10-04T04:00:00Z"})
+        assert continued["ends_night"] is True

@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from typing import Any
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from service.contracts.operations import AppError, Operation, OperationResult
 from service.infrastructure.repositories.common import check_version
@@ -37,8 +38,9 @@ class SleepsRepository:
             check_version(current["version"], op.version)
         sleep = {**(current or {"id": uuid4(), "version": 1, "events": []}), **op.data}
         self._parse(sleep)
-        sleep["ends_night"] = sleep["kind"] == "night" and sleep["end"] is not None
         day = await self.days.ensure(diary, sleep["day"], initialize=True)
+        sleep["ends_night"] = (sleep["kind"] == "night" and sleep["end"] is not None
+                               and sleep["end"].astimezone(ZoneInfo(day["timezone"])).date() > sleep["day"])
         for waking in sleep.get("wakings", []):
             if waking["end"] is None and sleep["end"] is not None:
                 if sleep["end"] <= waking["start"]:
