@@ -51,14 +51,14 @@ export function SettingsList({ children }) {
 }
 SettingsList.propTypes = { children: PropTypes.node };
 
-export function Setting({ title, subtitle, icon, onClick }) {
+export function Setting({ title, subtitle, icon, onClick, disabled = false }) {
     return (
         <ListItem
             component="div"
             className="mobile-setting"
             link
             linkComponent="button"
-            linkProps={{ type: 'button', onClick }}
+            linkProps={{ type: 'button', onClick, disabled }}
             title={title}
             subtitle={subtitle}
             media={<Icon name={icon} />}
@@ -72,6 +72,7 @@ Setting.propTypes = {
     subtitle: PropTypes.string,
     icon: PropTypes.string.isRequired,
     onClick: PropTypes.func.isRequired,
+    disabled: PropTypes.bool,
 };
 
 export function Section({ title, children }) {

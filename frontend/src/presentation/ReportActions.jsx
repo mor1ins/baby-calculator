@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 
-import { ActionButton, Form, Loading } from './Forms.jsx';
+import { ActionButton, ErrorMessage, Form, Loading } from './Forms.jsx';
 import { Icon } from './Icon.jsx';
 import { Button, Setting } from './Mobile.jsx';
 import { Sheet } from './Sheet.jsx';
@@ -37,52 +37,28 @@ PeriodForm.propTypes = {
     apply: PropTypes.func.isRequired,
 };
 
-function ExportReport({ report, close }) {
-    const mutation = useWrite();
-    const [notes, setNotes] = useState(true);
-    return (
-        <Sheet title="Экспорт данных" close={close}>
-            <div className="form-stack">
-                <p className="share-period">{periodLabel(report.from, report.to)}</p>
-                <button
-                    type="button"
-                    role="switch"
-                    aria-checked={notes}
-                    className="export-option"
-                    onClick={() => setNotes((value) => !value)}
-                >
-                    <span>Включить заметки</span>
-                    <span className="export-switch" aria-hidden="true" />
-                </button>
-                <ActionButton
-                    action={async () => {
-                        await mutation.mutateAsync({
-                            action: 'exportReport',
-                            values: { period: { from: report.from, to: report.to }, notes },
-                        });
-                        close();
-                    }}
-                >
-                    Скачать CSV
-                </ActionButton>
-            </div>
-        </Sheet>
-    );
-}
-ExportReport.propTypes = { report: PropTypes.object.isRequired, close: PropTypes.func.isRequired };
-
 export function ReportActions({ report, close }) {
     const [mode, setMode] = useState('menu');
-    if (mode === 'export') return <ExportReport report={report} close={close} />;
+    const mutation = useWrite();
     if (mode === 'share') return <ShareReport report={report} close={close} />;
     return (
         <Sheet title="Действия со статистикой" close={close}>
             <Setting
-                title="Скачать CSV"
+                title={mutation.isPending ? 'Готовим CSV…' : 'Скачать CSV'}
                 subtitle="Экспорт записей за период"
                 icon="download"
-                onClick={() => setMode('export')}
+                disabled={mutation.isPending}
+                onClick={() =>
+                    mutation.mutate(
+                        {
+                            action: 'exportReport',
+                            values: { period: { from: report.from, to: report.to }, notes: true },
+                        },
+                        { onSuccess: close },
+                    )
+                }
             />
+            <ErrorMessage error={mutation.error} />
             <Setting
                 title="Поделиться"
                 subtitle="Публичный отчёт по ссылке"
