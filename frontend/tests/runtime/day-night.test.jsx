@@ -1,7 +1,7 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 
 import { createRuntime } from '../../src/composition/container.js';
 import { Providers } from '../../src/composition/Providers.jsx';
@@ -41,13 +41,7 @@ it.each([undefined, 'another-user'])('keeps daytime records visible during the n
     const day = nightDay();
     const execute = vi.fn().mockResolvedValue(day);
     const runtime = createRuntime({ diaryRepository: { execute } });
-    render(
-        <Providers runtime={runtime}>
-            <MemoryRouter initialEntries={[`/?date=${day.date}`]}>
-                <DayPage user={{ timezone: day.timezone }} owner={owner} />
-            </MemoryRouter>
-        </Providers>,
-    );
+    showDay(runtime, day, `/?date=${day.date}`, owner);
     expect(await screen.findByRole('heading', { name: 'Уже сегодня' })).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Лента дня' })).toBeVisible();
     for (const number of [1, 2]) {
@@ -61,4 +55,78 @@ it.each([undefined, 'another-user'])('keeps daytime records visible during the n
         await userEvent.click(within(night).getByRole('button', { name: 'Завершить / исправить' }));
         expect(screen.getByLabelText('Начало сна')).toHaveValue('2026-10-10T21:12');
     }
+});
+
+function showDay(runtime, day, route, owner) {
+    render(
+        <Providers runtime={runtime}>
+            <MemoryRouter initialEntries={[route]}>
+                <DayPage user={{ timezone: day.timezone }} owner={owner} />
+            </MemoryRouter>
+        </Providers>,
+    );
+}
+
+afterEach(() => vi.useRealTimers());
+
+function morningScenario() {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-11T06:00:00Z'));
+    const night = { ...nightDay(), as_of: '2026-10-11T06:00:00Z' };
+    const morning = { ...night, date: '2026-10-11', sleeps: [], timeline: [], previous_night: null };
+    const execute = vi.fn(async ({ action, key, values }) => {
+        if (action === 'updateSleep') {
+            night.sleeps = night.sleeps.map((sleep) => (sleep.id === key ? { ...sleep, ...values } : sleep));
+            morning.previous_night = night.sleeps.find((sleep) => sleep.id === key);
+            return morning.previous_night;
+        }
+        if (action === 'child') return { profile: {}, version: 0 };
+        if (action === 'schedules') return { items: [] };
+        return structuredClone(key === night.date ? night : morning);
+    });
+    return { night, morning, execute, runtime: createRuntime({ diaryRepository: { execute } }) };
+}
+
+it('opens the ongoing night on the morning home screen and returns to today after finishing', async () => {
+    const { runtime, morning, execute } = morningScenario();
+    showDay(runtime, morning, '/');
+    expect(await screen.findByRole('heading', { name: 'Малыш спит уже' })).toBeVisible();
+    expect(screen.queryByText('Продолжается сон предыдущего дня.')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Завершить ночной сон', exact: true }));
+    expect(screen.getByLabelText('День цикла')).toHaveValue('2026-10-10');
+    expect(screen.getByLabelText('Конец сна (пусто — ещё спит)')).toHaveValue('2026-10-11T09:00');
+    await userEvent.click(screen.getByRole('button', { name: 'Сохранить', exact: true }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: 'Сегодня', exact: true })).toBeVisible();
+    expect(execute.mock.calls.find(([request]) => request.action === 'updateSleep')[0]).toMatchObject({
+        key: 'night',
+        values: { end: '2026-10-11T06:00:00Z' },
+    });
+});
+
+it.each([
+    ['/?date=2026-10-09', undefined],
+    ['/', 'another-user'],
+])('preserves a selected historical day or administrator view (%s, %s)', async (route, owner) => {
+    const { runtime, morning, execute } = morningScenario();
+    showDay(runtime, morning, route, owner);
+    await screen.findByRole('heading', { name: owner ? 'Лента дня' : /У каждого дня/ });
+    expect(screen.queryByRole('heading', { name: 'Малыш спит уже' })).not.toBeInTheDocument();
+    expect(execute.mock.calls.some(([request]) => request.key === '2026-10-10')).toBe(false);
+});
+
+it('keeps the night visible when an open home screen crosses midnight', async () => {
+    const { runtime, night, execute } = morningScenario();
+    night.as_of = '2026-10-10T20:59:00Z';
+    vi.setSystemTime(new Date(night.as_of));
+    showDay(runtime, night, '/');
+    await screen.findByRole('heading', { name: 'Малыш спит уже' });
+    night.as_of = '2026-10-11T06:00:00Z';
+    vi.setSystemTime(new Date(night.as_of));
+    await act(async () => runtime.queryClient.invalidateQueries({ queryKey: ['data'] }));
+    await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Завершить ночной сон', exact: true })).toBeVisible(),
+    );
+    expect(screen.queryByRole('button', { name: 'Открыть текущий сон' })).not.toBeInTheDocument();
+    await waitFor(() => expect(execute.mock.calls.some(([request]) => request.key === '2026-10-11')).toBe(true));
 });

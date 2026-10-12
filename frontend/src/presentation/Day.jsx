@@ -220,13 +220,14 @@ export function DayPage({ user, owner }) {
     const date = params.get('date') || today(user.timezone);
     const setDate = (value) => setParams({ date: value });
     const [calendar, setCalendar] = useState(false);
-    const query = useRead({ action: owner ? 'adminDay' : 'day', key: date, parent: owner }, { refetchInterval: 60000 });
+    const query = useDisplayedDay(date, user.timezone, owner);
+    const displayedDate = query.data?.date || date;
     return (
         <>
             <PageHeading
-                title={dayTitle(query.data, date, user.timezone)}
+                title={dayTitle(query.data, displayedDate, user.timezone)}
                 description={new Intl.DateTimeFormat('ru', { weekday: 'long', day: 'numeric', month: 'long' }).format(
-                    new Date(`${date}T12:00:00`),
+                    new Date(`${displayedDate}T12:00:00`),
                 )}
             >
                 <Button className="icon-button" aria-label="Выбрать дату" onClick={() => setCalendar(true)}>
@@ -256,8 +257,9 @@ export function DayPage({ user, owner }) {
                     </label>
                 </Sheet>
             )}
-            {!owner && <PreviousNight user={user} select={setDate} />}
-            <Loading query={query}>{query.data && <DayContent key={date} day={query.data} owner={owner} />}</Loading>
+            <Loading query={query}>
+                {query.data && <DayContent key={displayedDate} day={query.data} owner={owner} />}
+            </Loading>
         </>
     );
 }
@@ -320,21 +322,21 @@ WakeBoundaries.propTypes = {
     edit: PropTypes.func.isRequired,
 };
 
-function PreviousNight({ user, select }) {
-    const yesterday = dateShift(today(user.timezone), -1);
-    const previous = useRead({ action: 'day', key: yesterday }, { refetchInterval: 60000 });
-    const active = previous.data?.sleeps.find((sleep) => !sleep.end);
-    if (!active) return null;
-    return (
-        <section className="card ongoing">
-            <p>Продолжается сон предыдущего дня.</p>
-            <button type="button" onClick={() => select(yesterday)}>
-                Открыть текущий сон
-            </button>
-        </section>
-    );
+function activeSleep(day) {
+    return day?.sleeps.find((sleep) => !sleep.end);
 }
-PreviousNight.propTypes = { user: PropTypes.object.isRequired, select: PropTypes.func.isRequired };
+
+function useDisplayedDay(date, zone, owner) {
+    const query = useRead({ action: owner ? 'adminDay' : 'day', key: date, parent: owner }, { refetchInterval: 60000 });
+    const checkPrevious = !owner && date === today(zone) && !activeSleep(query.data);
+    const previous = useRead(
+        { action: 'day', key: dateShift(date, -1) },
+        { enabled: checkPrevious, refetchInterval: 60000 },
+    );
+    if (!checkPrevious || query.isPending || query.isError) return query;
+    if (previous.isPending || previous.isError || activeSleep(previous.data)) return previous;
+    return query;
+}
 
 function SleepControls({ sleep, edit }) {
     return (
