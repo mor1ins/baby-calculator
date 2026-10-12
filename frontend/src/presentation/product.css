@@ -248,42 +248,38 @@
 }
 
 .night-control {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    align-items: stretch;
+    gap: 8px;
     margin-top: 24px;
 }
 
-.night-hero .night-toggle.mobile-button {
+.night-control .mobile-button {
     width: 100%;
-    min-height: 48px;
+    min-width: 0;
+    min-height: 56px;
+    height: auto;
     margin: 0;
-    border: 0;
+    padding: 10px;
     border-radius: 14px;
+    font-size: 0.875rem;
+    line-height: 1.3;
+    white-space: normal;
+}
+
+.night-hero .night-toggle.mobile-button {
+    border: 1px solid var(--night-button-bg);
+    background: transparent;
+    color: var(--night-button-bg);
+}
+
+.night-hero .night-rise.mobile-button {
+    border: 1px solid transparent;
     background: var(--night-button-bg);
     color: var(--night-button-ink);
 }
 
-.night-secondary-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
-}
-
-.night-secondary-actions .night-end {
-    flex: 1;
-    justify-content: flex-start;
-    min-height: 48px;
-    padding-inline: 8px;
-    font-size: 0.875rem;
-}
-
-.night-secondary-actions .icon-button {
-    width: 44px;
-    height: 44px;
-    flex-shrink: 0;
-    border: 0;
-    background: transparent;
-}
-
-.night-secondary-actions .mobile-button {
-    color: var(--purple);
+.night-control .error {
+    grid-column: 1 / -1;
 }

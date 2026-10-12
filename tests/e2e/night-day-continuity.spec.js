@@ -47,7 +47,7 @@ test('starting night through settling keeps the whole day visible after reload',
         await page.screenshot({ path: testInfo.outputPath(`night-${colorScheme}.png`), fullPage: true });
         expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     }
-    await page.getByRole('button', { name: 'Завершить ночной сон', exact: true }).click();
+    await page.getByRole('button', { name: 'Проснулся', exact: true }).click();
     await expect(page.getByLabel('Начало сна')).toBeVisible();
     await page.getByRole('button', { name: 'Отмена', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);

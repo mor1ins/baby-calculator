@@ -17,7 +17,7 @@ test('night view, admin read-only diary and immediate account block', async ({ p
     await page.goto(`/?date=${day}`);
     await expect(page.getByRole('heading',{name:'Малыш спит уже'})).toBeVisible();
     await expect(page.getByRole('button',{name:'Проснулся / заплакал',exact:true})).toHaveCount(0);
-    await page.getByRole('button',{name:'Завершить ночной сон',exact:true}).click();
+    await page.getByRole('button',{name:'Проснулся',exact:true}).click();
     await page.getByRole('button',{name:'Сохранить',exact:true}).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.locator('.time-row.night')).toBeVisible();
@@ -37,7 +37,7 @@ test('night view, admin read-only diary and immediate account block', async ({ p
     await admin.getByRole('button',{name:'Выбрать дату'}).click();
     await admin.getByRole('textbox',{name:'День дневника',exact:true}).fill(day);
     await expect(admin.locator('.time-row.night')).toBeVisible();
-    await expect(admin.getByRole('button',{name:/Изменить интервал|Удалить|Завершить ночной сон/})).toHaveCount(0);
+    await expect(admin.getByRole('button',{name:/Изменить интервал|Удалить|Проснулся/})).toHaveCount(0);
     await admin.getByRole('link',{name:'К пользователям',exact:true}).click();
     await admin.getByLabel('Поиск по имени или email').fill(email);
     await admin.getByRole('button',{name:'Заблокировать',exact:true}).click();

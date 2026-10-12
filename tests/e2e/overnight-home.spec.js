@@ -22,11 +22,11 @@ test('morning home keeps the ongoing night directly available until wake-up', as
     for (const reload of [false, true]) {
         if (reload) await page.reload();
         await expect(page.getByRole('heading', { name: 'Малыш спит уже' })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Завершить ночной сон', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Проснулся', exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Открыть текущий сон' })).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Добавить ночной сон', exact: true })).toHaveCount(0);
     }
-    await page.getByRole('button', { name: 'Завершить ночной сон', exact: true }).click();
+    await page.getByRole('button', { name: 'Проснулся', exact: true }).click();
     await expect(page.getByLabel('День цикла')).toHaveValue(previous);
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);

@@ -33,11 +33,8 @@ test('night waking can be entered, timed, edited and shown in the rhythm chart',
         await page.emulateMedia({ colorScheme: theme });
         await page.screenshot({ path: testInfo.outputPath(`night-home-${theme}.png`), fullPage: true });
     }
-    await page.getByRole('button', { name: 'Действия с ночным сном' }).click();
-    await page.getByRole('button', { name: 'Указать время ночного бодрствования' }).click();
-    await page.getByLabel('Начало ночного бодрствования', { exact: true }).fill(`${yesterday}T22:00`);
-    await page.getByLabel(/Конец ночного бодрствования/).fill(`${yesterday}T22:30`);
-    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await write('/night-wakings', { day: yesterday, start: `${yesterday}T22:00:00+03:00`, end: `${yesterday}T22:30:00+03:00` });
+    await page.reload();
     await expect(page.getByRole('heading', { name: 'Ночное бодрствование', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Ночное бодрствование', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Малыш бодрствует' })).toBeVisible();

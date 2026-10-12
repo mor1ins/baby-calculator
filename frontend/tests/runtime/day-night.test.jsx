@@ -47,7 +47,7 @@ it.each([undefined, 'another-user'])('keeps daytime records visible during the n
     for (const number of [1, 2]) {
         expect(screen.getByRole('heading', { name: `Дневной сон ${number}` })).toBeVisible();
     }
-    const finish = screen.queryByRole('button', { name: 'Завершить ночной сон', exact: true });
+    const finish = screen.queryByRole('button', { name: 'Проснулся', exact: true });
     expect(Boolean(finish)).toBe(!owner);
     if (!owner) {
         expect(screen.getByRole('heading', { name: 'Малыш спит уже' })).toBeVisible();
@@ -92,7 +92,7 @@ it('opens the ongoing night on the morning home screen and returns to today afte
     showDay(runtime, morning, '/');
     expect(await screen.findByRole('heading', { name: 'Малыш спит уже' })).toBeVisible();
     expect(screen.queryByText('Продолжается сон предыдущего дня.')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Завершить ночной сон', exact: true }));
+    await userEvent.click(screen.getByRole('button', { name: 'Проснулся', exact: true }));
     expect(screen.getByLabelText('День цикла')).toHaveValue('2026-10-10');
     expect(screen.getByLabelText('Конец сна (пусто — ещё спит)')).toHaveValue('2026-10-11T09:00');
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить', exact: true }));
@@ -124,9 +124,7 @@ it('keeps the night visible when an open home screen crosses midnight', async ()
     night.as_of = '2026-10-11T06:00:00Z';
     vi.setSystemTime(new Date(night.as_of));
     await act(async () => runtime.queryClient.invalidateQueries({ queryKey: ['data'] }));
-    await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Завершить ночной сон', exact: true })).toBeVisible(),
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Проснулся', exact: true })).toBeVisible());
     expect(screen.queryByRole('button', { name: 'Открыть текущий сон' })).not.toBeInTheDocument();
     await waitFor(() => expect(execute.mock.calls.some(([request]) => request.key === '2026-10-11')).toBe(true));
 });
