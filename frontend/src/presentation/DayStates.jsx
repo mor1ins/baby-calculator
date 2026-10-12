@@ -11,7 +11,7 @@ import { clockTime, dateShift } from './time.js';
 import { useWrite } from './useApi.js';
 
 export function WelcomeDay({ day }) {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(null);
     return (
         <>
             <div className="empty welcome-card">
@@ -30,13 +30,21 @@ export function WelcomeDay({ day }) {
                     <br />
                     начало дня и прогноз.
                 </p>
-                <Button onClick={() => setOpen(true)}>
+                <Button onClick={() => setOpen('night')}>
                     <Icon name="plus" />
                     Добавить ночной сон
                 </Button>
+                <Button className="text-button add-past" onClick={() => setOpen('event')}>
+                    <Icon name="plus" />
+                    Добавить событие
+                </Button>
             </div>
             {open && (
-                <SleepForm day={{ ...day, date: dateShift(day.date, -1) }} kind="night" close={() => setOpen(false)} />
+                <SleepForm
+                    day={open === 'night' ? { ...day, date: dateShift(day.date, -1) } : day}
+                    kind={open === 'night' ? 'night' : 'nap'}
+                    close={() => setOpen(null)}
+                />
             )}
         </>
     );
