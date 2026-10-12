@@ -11,45 +11,22 @@ import { useRead, useWrite } from './useApi.js';
 export const periodLabel = (from, to) =>
     `${from.split('-').reverse().join('.')} — ${to.split('-').reverse().join('.')}`;
 
-export function PeriodForm({ period, zone, close, apply, exporting = false }) {
-    const mutation = useWrite();
-    const [notes, setNotes] = useState(false);
+export function PeriodForm({ period, zone, close, apply }) {
     return (
-        <Sheet title={exporting ? 'Экспорт данных' : 'Выбрать период'} close={close}>
-            <p className="subtle">Даты циклов включительно · {zone}</p>
+        <Sheet title="Выбрать период" close={close}>
             <Form
                 fields={[
                     { name: 'from', label: 'С', type: 'date', required: true, max: today(zone) },
                     { name: 'to', label: 'По', type: 'date', required: true, max: today(zone) },
                 ]}
                 initial={period}
-                label={exporting ? 'Скачать CSV' : 'Применить период'}
-                submit={async (values) => {
+                label="Применить период"
+                submit={(values) => {
                     if (values.from > values.to) throw new Error('Начало периода должно быть не позже окончания');
-                    if (exporting)
-                        await mutation.mutateAsync({ action: 'exportReport', values: { period: values, notes } });
-                    else apply(values);
+                    apply(values);
                     close();
                 }}
-            >
-                {exporting && (
-                    <>
-                        <p className="info-note">
-                            CSV: фактические интервалы сна. Открытый сон — без окончания и длительности. Прогнозы не
-                            выгружаются.
-                        </p>
-                        <label className="export-check">
-                            <input
-                                type="checkbox"
-                                checked={notes}
-                                onChange={(event) => setNotes(event.target.checked)}
-                            />
-                            Включить заметки
-                        </label>
-                        <p className="form-note">Заметки могут содержать личную информацию. UTF-8 · разделитель «;».</p>
-                    </>
-                )}
-            </Form>
+            />
         </Sheet>
     );
 }
@@ -57,13 +34,46 @@ PeriodForm.propTypes = {
     period: PropTypes.object.isRequired,
     zone: PropTypes.string.isRequired,
     close: PropTypes.func.isRequired,
-    apply: PropTypes.func,
-    exporting: PropTypes.bool,
+    apply: PropTypes.func.isRequired,
 };
+
+function ExportReport({ report, close }) {
+    const mutation = useWrite();
+    const [notes, setNotes] = useState(true);
+    return (
+        <Sheet title="Экспорт данных" close={close}>
+            <div className="form-stack">
+                <p className="share-period">{periodLabel(report.from, report.to)}</p>
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked={notes}
+                    className="export-option"
+                    onClick={() => setNotes((value) => !value)}
+                >
+                    <span>Включить заметки</span>
+                    <span className="export-switch" aria-hidden="true" />
+                </button>
+                <ActionButton
+                    action={async () => {
+                        await mutation.mutateAsync({
+                            action: 'exportReport',
+                            values: { period: { from: report.from, to: report.to }, notes },
+                        });
+                        close();
+                    }}
+                >
+                    Скачать CSV
+                </ActionButton>
+            </div>
+        </Sheet>
+    );
+}
+ExportReport.propTypes = { report: PropTypes.object.isRequired, close: PropTypes.func.isRequired };
 
 export function ReportActions({ report, close }) {
     const [mode, setMode] = useState('menu');
-    if (mode === 'export') return <PeriodForm period={report} zone={report.timezone} close={close} exporting />;
+    if (mode === 'export') return <ExportReport report={report} close={close} />;
     if (mode === 'share') return <ShareReport report={report} close={close} />;
     return (
         <Sheet title="Действия со статистикой" close={close}>

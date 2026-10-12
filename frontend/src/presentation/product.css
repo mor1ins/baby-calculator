@@ -210,3 +210,48 @@
     stroke: var(--chart-event);
     stroke-width: 0.35;
 }
+
+.export-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    min-height: 60px;
+    margin-top: 4px;
+    padding: 12px 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 15px;
+    text-align: left;
+}
+
+.export-option:active {
+    background: var(--lavender);
+}
+
+.export-switch {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 28px;
+    padding: 3px;
+    border-radius: 20px;
+    background: var(--muted);
+}
+
+.export-switch::before {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--on-accent);
+    content: '';
+}
+
+.export-option[aria-checked='true'] .export-switch {
+    justify-content: flex-end;
+    background: var(--purple);
+}
