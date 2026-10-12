@@ -3,6 +3,7 @@ import { Fragment, useState } from 'react';
 
 import { ChangeEditor } from './DayContext.jsx';
 import { ActionButton } from './Forms.jsx';
+import { intervalNames } from './labels.js';
 import { Button, Card, Section } from './Mobile.jsx';
 import { rhythmScale } from './rhythmScale.js';
 import { dateShift, duration } from './time.js';
@@ -13,7 +14,7 @@ export const reportDuration = (minutes) =>
 export const minuteTime = (value) =>
     value === null || value === undefined
         ? '—'
-        : `${String(Math.floor(value / 60) % 24).padStart(2, '0')}:${String(Math.round(value % 60)).padStart(2, '0')}`;
+        : `${String(Math.floor(value / 60) % 24).padStart(2, '0')}:${String(Math.floor(value % 60)).padStart(2, '0')}`;
 export const shortDate = (value) => value.slice(8) + '.' + value.slice(5, 7);
 
 export function Overview({ report }) {
@@ -41,9 +42,9 @@ export function Overview({ report }) {
             </div>
             <div className="report-metrics">
                 {[
-                    ['total', 'Всего по записям', 'дневной сон + ночной интервал'],
+                    ['total', 'Всего по записям', 'дневной + ночной сон'],
                     ['nap', 'Дневной сон', 'в среднем за цикл'],
-                    ['night', 'Ночной интервал', 'в среднем за цикл'],
+                    ['night', 'Ночной сон', 'в среднем за цикл'],
                     ['awake', 'Бодрствование', 'в среднем за цикл'],
                     ['count', 'Дневных снов', 'в среднем за цикл'],
                 ].map(([key, label, hint]) => (
@@ -68,8 +69,8 @@ function RhythmBar({ start, end, kind, scale }) {
     const left = Math.max(0, ((start - scale.from) / (scale.to - scale.from)) * 100);
     const right = Math.min(100, ((end - scale.from) / (scale.to - scale.from)) * 100);
     if (right <= left) return null;
-    const visibleLeft = kind === 'settling' ? Math.max(0, Math.min(left, right - 1.6)) : left;
-    return <path className={kind} d={`M${visibleLeft} 0H${right}V10H${visibleLeft}Z`} />;
+    const visibleLeft = ['settling', 'night_awake'].includes(kind) ? Math.max(0, Math.min(left, right - 1.6)) : left;
+    return <path className={kind.replace('_', '-')} d={`M${visibleLeft} 0H${right}V10H${visibleLeft}Z`} />;
 }
 RhythmBar.propTypes = {
     start: PropTypes.number,
@@ -95,6 +96,7 @@ export function Rhythm({ report }) {
                     <span className="nap-dot">Днём</span>
                     <span className="night-dot">Ночной сон</span>
                     <span className="settling-dot">Укладывание</span>
+                    <span className="night-awake-dot">Ночное бодрствование</span>
                 </div>
                 <div className="rhythm-axis">
                     {Array.from({ length: 5 }, (_, index) =>
@@ -147,12 +149,23 @@ export function Rhythm({ report }) {
                                                 kind="night"
                                                 scale={scale}
                                             />
-                                            <RhythmBar
-                                                start={item.settleStart}
-                                                end={item.nightStart}
-                                                kind="settling"
-                                                scale={scale}
-                                            />
+                                            {[
+                                                [
+                                                    'settling',
+                                                    item.settlingRanges || [[item.settleStart, item.nightStart]],
+                                                ],
+                                                ['night_awake', item.nightWakings || []],
+                                            ].flatMap(([kind, ranges]) =>
+                                                ranges.map(([start, end], index) => (
+                                                    <RhythmBar
+                                                        key={`${kind}-${index}`}
+                                                        start={start}
+                                                        end={end}
+                                                        kind={kind}
+                                                        scale={scale}
+                                                    />
+                                                )),
+                                            )}
                                         </svg>
                                     ) : (
                                         <small>Нет записей</small>
@@ -191,7 +204,7 @@ function DayDetail({ row }) {
                     .map((entry, index) => (
                         <li key={index} className={entry.kind === 'nap' ? 'nap-item' : ''}>
                             <span>
-                                {entry.kind === 'nap' ? 'Дневной сон' : 'Бодрствование'}
+                                {intervalNames[entry.kind]}
                                 <small>
                                     {new Date(entry.start).toLocaleTimeString('ru', {
                                         timeZone: row.timezone,
@@ -214,7 +227,7 @@ function DayDetail({ row }) {
             </ol>
             {row.settleStart !== null && row.settleStart !== undefined && (
                 <p className="subtle">
-                    Укладывание {minuteTime(row.settleStart)}–{minuteTime(row.nightStart)}
+                    Укладывание {minuteTime(row.settleStart)}–{minuteTime(row.settleStart + row.settling)}
                     {[row.settlingHelp, row.mood]
                         .filter(Boolean)
                         .map((detail) => ` · ${detail}`)
@@ -238,7 +251,7 @@ function DayCalculations({ row }) {
                     ['Последнее бодрствование', reportDuration(row.lastWake)],
                     ['Укладывание', reportDuration(row.settling)],
                     ['Засыпание на ночь', minuteTime(row.nightStart)],
-                    ['Ночной интервал', reportDuration(row.night)],
+                    ['Ночной сон', reportDuration(row.night)],
                 ].map(([label, value]) => (
                     <div key={label}>
                         <dt>{label}</dt>

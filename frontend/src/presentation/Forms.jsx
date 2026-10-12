@@ -25,7 +25,7 @@ export function ErrorMessage({ error }) {
 }
 ErrorMessage.propTypes = { error: PropTypes.object };
 
-export function Form({ fields, initial = {}, submit, label = 'Сохранить', disabled = false, children }) {
+export function Form({ fields, initial = {}, submit, label = 'Сохранить', disabled = false, children, onChange }) {
     const {
         register,
         resetField,
@@ -49,7 +49,7 @@ export function Form({ fields, initial = {}, submit, label = 'Сохранить
         }
     });
     return (
-        <form onSubmit={send} className="form-stack">
+        <form onSubmit={send} className="form-stack" onChange={onChange}>
             {fields.map((field) => (
                 <Field key={field.name} field={field} register={register} />
             ))}
@@ -62,6 +62,7 @@ export function Form({ fields, initial = {}, submit, label = 'Сохранить
     );
 }
 Form.propTypes = {
+    onChange: PropTypes.func,
     fields: PropTypes.array.isRequired,
     initial: PropTypes.object,
     submit: PropTypes.func.isRequired,

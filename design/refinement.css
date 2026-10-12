@@ -11,6 +11,7 @@
   --chart-night: #524465;
   --chart-event: #e6ae54;
   --chart-settling: #e56819;
+  --chart-night-awake: #00857a;
   --on-accent: #fff;
   --soft-shadow: 0 4px 20px #292b3d06;
   --focus-ring: #665295;
@@ -31,6 +32,7 @@
   --chart-night: #8c7baf;
   --chart-event: #efbc6d;
   --chart-settling: #ff9c45;
+  --chart-night-awake: #58d9c5;
   --on-accent: #241d33;
   --soft-shadow: none;
   --focus-ring: #c8b9f4;

@@ -225,3 +225,20 @@
     padding-inline: 14px;
     border-radius: 0;
 }
+
+.rhythm-svg .night-awake {
+    fill: var(--chart-night-awake);
+}
+
+.night-awake-dot::before,
+.time-row.night-awake .time-dot {
+    background: var(--chart-night-awake);
+}
+
+.time-row.settling .time-dot {
+    background: var(--chart-settling);
+}
+
+.hero .settling-without-sleep.mobile-button {
+    color: inherit;
+}

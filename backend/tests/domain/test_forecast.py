@@ -59,3 +59,16 @@ def test_overdue_sleep_keeps_unknown_end_and_original_expected_end() -> None:
     assert sleep["end"] is None
     assert sleep["expected_end"] == moment(340)
     assert result["sleeps"][0]["end"] is None
+
+
+@pytest.mark.parametrize("end", [900, None])
+def test_night_wakings_do_not_inflate_sleep_or_day_awake(end: int | None) -> None:
+    data = document([("night", 800, None)])
+    data["sleeps"][0]["wakings"] = [{"id": "waking", "start": moment(850),
+                                     "end": moment(end) if end else None}]
+    result = calculate_day(data, moment(950))
+    assert result["metrics"]["night_sleep_seconds"] == (100 if end else 50) * 60
+    assert result["metrics"]["day_awake_seconds"] == 800 * 60
+    active = next(item for item in result["timeline"] if item["status"] == "ongoing")
+    assert active["kind"] == ("night" if end else "night_awake")
+    assert active["expected_end"] == (moment(1450) if end else None)

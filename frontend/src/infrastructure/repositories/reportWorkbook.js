@@ -2,10 +2,13 @@ import ExcelJS from 'exceljs';
 
 const label = (date) => date.split('-').reverse().join('.');
 const fills = Object.fromEntries(
-    Object.entries({ night: 'FF93CCEA', nap: 'FFF9C6A1', awake: 'FFF2F2F2' }).map(([kind, argb]) => [
-        kind,
-        { type: 'pattern', pattern: 'solid', fgColor: { argb } },
-    ]),
+    Object.entries({
+        night: 'FF93CCEA',
+        nap: 'FFF9C6A1',
+        awake: 'FFF2F2F2',
+        night_awake: 'FFA3D9CF',
+        settling: 'FFFFCF91',
+    }).map(([kind, argb]) => [kind, { type: 'pattern', pattern: 'solid', fgColor: { argb } }]),
 );
 
 function intervalText(entry, zone, notes) {
@@ -16,7 +19,13 @@ function intervalText(entry, zone, notes) {
             minute: '2-digit',
             hourCycle: 'h23',
         }).format(new Date(value));
-    const title = { night: 'Ночной сон\n', nap: 'Дневной сон\n', awake: '' }[entry.kind];
+    const title = {
+        night: 'Ночной сон\n',
+        nap: 'Дневной сон\n',
+        awake: '',
+        night_awake: 'Ночное бодрствование\n',
+        settling: 'Укладывание\n',
+    }[entry.kind];
     const minutes = Math.floor(entry.duration_seconds / 60);
     const duration = `${minutes >= 60 ? `${Math.floor(minutes / 60)}ч ` : ''}${minutes % 60}м`;
     const time = entry.end ? `${clock(entry.start)} - ${clock(entry.end)} /${duration}/` : `${clock(entry.start)} - …`;

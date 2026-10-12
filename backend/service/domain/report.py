@@ -16,22 +16,27 @@ def restore(document: dict[str, Any]) -> dict[str, Any]:
     sleeps = [dict(sleep) for sleep in document["sleeps"]]
     previous = dict(document["previous_night"]) if document["previous_night"] else None
     for sleep in sleeps + ([previous] if previous else []):
-        sleep.update(start=timestamp(sleep["start"]), end=timestamp(sleep["end"]))
-    result.update(sleeps=sleeps, previous_night=previous)
+        sleep.update(start=timestamp(sleep["start"]), end=timestamp(sleep["end"]), wakings=[
+            {**waking, "start": timestamp(waking["start"]), "end": timestamp(waking["end"])}
+            for waking in sleep.get("wakings", [])])
+    result.update(sleeps=sleeps, previous_night=previous, settling=[
+        {**attempt, "start_at": timestamp(attempt["start_at"]), "end_at": timestamp(attempt["end_at"])}
+        for attempt in document.get("settling", [])])
     return result
 
 
-def minutes(value: datetime | None, cycle: date, zone: str) -> int | None:
+def minutes(value: datetime | None, cycle: date, zone: str) -> float | None:
     if value is None:
         return None
     local = value.astimezone(ZoneInfo(zone))
-    return (local.date() - cycle).days * 1440 + local.hour * 60 + local.minute
+    return ((local.date() - cycle).days * 1440 + local.hour * 60 + local.minute
+            + local.second / 60 + local.microsecond / 60000000)
 
 
 def report_row(document: dict[str, Any], now: datetime) -> dict[str, Any]:
     day = calculate_day(document, now)
 
-    def local(value: datetime | None) -> int | None:
+    def local(value: datetime | None) -> float | None:
         return minutes(value, day["date"], day["timezone"])
     naps = [sleep for sleep in day["sleeps"] if sleep["kind"] == "nap"]
     nights = [sleep for sleep in day["sleeps"] if sleep["kind"] == "night"]
@@ -47,9 +52,14 @@ def report_row(document: dict[str, Any], now: datetime) -> dict[str, Any]:
             "night": totals["night_sleep_seconds"] if day["complete"] else None,
             "awake": totals["day_awake_seconds"], "count": len(naps),
             "morning": local(day["previous_night"]["end"]) if day["previous_night"] else None,
-            "nightStart": local(night_start), "nightEnd": local(nights[-1]["end"]) if nights else None,
+            "nightStart": local(night_start), "nightEnd": local(nights[-1]["end"] or now) if nights else None,
             "settleStart": local(settle_start),
-            "settling": (night_start - settle_start).total_seconds() / 60 if settle_start and night_start else None,
+            "settling": (attempt["end_at"] - settle_start).total_seconds() / 60
+            if attempt and attempt["end_at"] else None,
+            "settlingRanges": [[local(item["start_at"]), local(item["end_at"] or now)] for item in day["settling"]],
+            "nightWakings": [[local(item["start"]), local(item["end"] or now)]
+                             for sleep in nights + ([day["previous_night"]] if day["previous_night"] else [])
+                             for item in sleep.get("wakings", [])],
             "lastWake": (night_start - previous_end).total_seconds() / 60 if night_start and previous_end else None,
             "naps": [[local(sleep["start"]), local(sleep["end"])] for sleep in naps],
             "settlingHelp": context.get("help", ""), "mood": context.get("mood", ""),

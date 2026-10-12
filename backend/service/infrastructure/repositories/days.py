@@ -76,7 +76,16 @@ class DaysRepository:
         by_sleep: dict[Any, list[dict[str, Any]]] = defaultdict(list)
         for event in events:
             by_sleep[event["sleep_id"]].append({"id": event["id"], "occurred_at": event["occurred_at"]})
+        wakings = await self.records.rows(
+            """SELECT id,version,sleep_id,start_at AS start,end_at AS end FROM night_wakings
+               WHERE diary_id=:id AND sleep_id=ANY(CAST(:sleep_ids AS uuid[])) ORDER BY start_at""",
+            id=diary_id, sleep_ids=[sleep["id"] for sleep in rows],
+        )
+        waking_by_sleep: dict[Any, list[dict[str, Any]]] = defaultdict(list)
+        for waking in wakings:
+            waking_by_sleep[waking["sleep_id"]].append(waking)
         for sleep in rows:
+            sleep["wakings"] = waking_by_sleep[sleep["id"]]
             sleep["events"] = by_sleep[sleep["id"]]
         return rows
 

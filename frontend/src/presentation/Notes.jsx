@@ -64,7 +64,13 @@ Note.propTypes = { interval: PropTypes.object.isRequired, readOnly: PropTypes.bo
 
 export function OrphanedNotes({ day, readOnly }) {
     const mutation = useWrite();
-    const targets = day.timeline.filter((entry) => entry.id && !entry.comment);
+    const targets = [
+        ...new Map(
+            day.timeline
+                .filter((entry) => entry.id && !entry.comment && ['nap', 'night', 'awake'].includes(entry.kind))
+                .map((entry) => [entry.id, entry]),
+        ).values(),
+    ];
     return day.orphaned_comments.map((comment) => (
         <section className="card" key={comment.id}>
             <h2>Заметка без интервала</h2>

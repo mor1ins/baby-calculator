@@ -33,8 +33,27 @@ def timeline(document: dict[str, Any], now: datetime) -> list[dict[str, Any]]:
             right = sleeps.get(target["right_sleep_id"])
             entry = interval("awake", left["end"], right["start"] if right else None, now, target)
         entry["comment"] = next((note for note in document["comments"] if note["target_id"] == target["id"]), None)
-        result.append(entry)
+        result.extend(night_parts(entry, sleep.get("wakings", []), now)
+                      if target["kind"] == "sleep" else [entry])
     return sorted(result, key=lambda entry: entry["start"])
+
+
+def night_parts(entry: dict[str, Any], wakings: list[dict[str, Any]], now: datetime) -> list[dict[str, Any]]:
+    result = []
+    cursor = entry["start"]
+    for waking in wakings:
+        if waking["start"] > cursor:
+            result.append({**entry, "start": cursor,
+                           "end": waking["start"], "status": "actual",
+                           "duration_seconds": seconds(cursor, waking["start"])})
+        result.append(interval("night_awake", waking["start"], waking["end"], now,
+                               {"id": waking["id"], "sleep_id": entry["sleep_id"]}))
+        if waking["end"] is None:
+            return result
+        cursor = waking["end"]
+    if entry["end"] is None or cursor < entry["end"]:
+        result.append({**entry, "start": cursor, "duration_seconds": seconds(cursor, entry["end"] or now)})
+    return result
 
 
 def metrics(document: dict[str, Any], entries: list[dict[str, Any]], now: datetime) -> dict[str, int | None]:
@@ -73,13 +92,19 @@ def calculate_day(document: dict[str, Any], now: datetime) -> dict[str, Any]:
                   as_of=now, complete=complete, metrics=totals, timeline=entries,
                   orphaned_comments=orphaned, issues=issues)
     add_forecast(document, entries, issues, now)
-    result["sleeps"] = [_public(sleep) for sleep in document["sleeps"]]
-    result["previous_night"] = _public(document["previous_night"]) if document["previous_night"] else None
+    entries.extend(interval("settling", attempt["start_at"], attempt["end_at"], now,
+                            {"id": attempt["id"], "sleep_id": attempt["sleep_id"]})
+                   for attempt in document.get("settling", []))
+    entries.sort(key=lambda entry: entry["start"])
+    result["sleeps"] = [_public(sleep, now) for sleep in document["sleeps"]]
+    result["previous_night"] = _public(document["previous_night"], now) if document["previous_night"] else None
     return result
 
 
-def _public(sleep: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in sleep.items() if key != "day_id"}
+def _public(sleep: dict[str, Any], now: datetime) -> dict[str, Any]:
+    duration = seconds(sleep["start"], sleep["end"] or now) - sum(
+        seconds(waking["start"], waking["end"] or now) for waking in sleep.get("wakings", []))
+    return {key: value for key, value in sleep.items() if key != "day_id"} | {"duration_seconds": max(0, duration)}
 
 
 class CalculateDaysHandler:

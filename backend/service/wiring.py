@@ -13,6 +13,7 @@ from service.infrastructure.repositories.details import DetailsRepository
 from service.infrastructure.repositories.diaries import SqlDiariesRepository
 from service.infrastructure.repositories.events import EventsRepository
 from service.infrastructure.repositories.identity import IdentityRepository
+from service.infrastructure.repositories.night_wakings import NightWakingsRepository
 from service.infrastructure.repositories.reports import ReportsRepository
 from service.infrastructure.repositories.schedules import SchedulesRepository
 from service.infrastructure.repositories.settling import SettlingRepository
@@ -42,6 +43,7 @@ def repository_scope(transaction: Transaction, passwords: Passwords,
     schedules = SchedulesRepository(records, identity)
     days = DaysRepository(records, schedules)
     settling = SettlingRepository(days)
+    wakings = NightWakingsRepository(days, clock_skew_tolerance_minutes)
     details = DetailsRepository(days)
     reports = ReportsRepository(days)
     sleeps = SleepsRepository(days, TargetsRepository(days), clock_skew_tolerance_minutes, settling)
@@ -51,6 +53,8 @@ def repository_scope(transaction: Transaction, passwords: Passwords,
     return RepositoryScope(records, identity, {
         "getChild": details.child, "updateChild": details.child, "updateDayContext": details.context,
         "createChange": details.change, "deleteChange": details.change,
+        "updateSettling": settling.update,
+        "createNightWaking": wakings.write, "updateNightWaking": wakings.write, "deleteNightWaking": wakings.write,
         "startSettling": settling.write, "finishSettling": settling.write, "cancelSettling": settling.write,
         "getReport": reports.report, "createShare": reports.create_share, "listShares": reports.shares,
         "revokeShare": reports.shares, "getPublicReport": reports.public,

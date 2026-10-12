@@ -6,11 +6,11 @@ import { createRuntime } from '../../src/composition/container.js';
 import { Providers } from '../../src/composition/Providers.jsx';
 import { SleepForm } from '../../src/presentation/SleepForm.jsx';
 
-it('patches only changed fields without truncating saved timestamp precision', async () => {
+it.each(['nap', 'night_awake'])('preserves unchanged timestamp precision when editing %s', async (kind) => {
     const sleep = {
         id: 'sleep',
         day: '2026-10-03',
-        kind: 'nap',
+        kind,
         start: '2026-10-03T07:50:41.700Z',
         end: '2026-10-03T09:10:38.400Z',
         ends_night: false,
@@ -25,11 +25,40 @@ it('patches only changed fields without truncating saved timestamp precision', a
             <SleepForm sleep={sleep} day={day} close={close} />
         </Providers>,
     );
-    fireEvent.change(screen.getByLabelText('Конец сна (пусто — ещё спит)'), { target: { value: '2026-10-03T12:20' } });
+    fireEvent.change(screen.getByLabelText(/^Конец/), { target: { value: '2026-10-03T12:20' } });
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить', exact: true }));
     expect(execute).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'updateSleep', version: 3, values: { end: '2026-10-03T09:20:00Z' } }),
+        expect.objectContaining({
+            action: kind === 'nap' ? 'updateSleep' : 'updateNightWaking',
+            version: 3,
+            values: { ...(kind === 'night_awake' ? { start: sleep.start } : {}), end: '2026-10-03T09:20:00Z' },
+        }),
         undefined,
     );
     expect(close).toHaveBeenCalledOnce();
+});
+
+it('records explicit waking boundaries using the new type in the sleep form', async () => {
+    const execute = vi.fn().mockResolvedValue({});
+    const runtime = createRuntime({ diaryRepository: { execute } });
+    render(
+        <Providers runtime={runtime}>
+            <SleepForm day={{ date: '2026-10-03', timezone: 'Europe/Moscow', sleeps: [] }} close={vi.fn()} />
+        </Providers>,
+    );
+    await userEvent.selectOptions(screen.getByLabelText('Вид сна'), 'night_awake');
+    fireEvent.change(screen.getByLabelText('Начало ночного бодрствования'), {
+        target: { value: '2026-10-04T02:00' },
+    });
+    fireEvent.change(screen.getByLabelText(/Конец ночного бодрствования/), {
+        target: { value: '2026-10-04T02:40' },
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Сохранить', exact: true }));
+    expect(execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+            action: 'createNightWaking',
+            values: { day: '2026-10-03', start: '2026-10-03T23:00:00Z', end: '2026-10-03T23:40:00Z' },
+        }),
+        undefined,
+    );
 });

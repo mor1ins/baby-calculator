@@ -40,7 +40,7 @@ test('starting night through settling keeps the whole day visible after reload',
         await expect(page.getByRole('heading', { name: 'Лента дня' })).toBeVisible();
         await expect(page.locator('.time-row.nap')).toHaveCount(2);
         await expect(page.locator('.time-row.night')).toHaveCount(1);
-        await expect(page.locator('.settling-note')).toContainText('Укладывание');
+        await expect(page.locator('.time-row.settling')).toContainText('Укладывание');
     }
     for (const colorScheme of ['light', 'dark']) {
         await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });

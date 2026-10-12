@@ -672,6 +672,77 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/DayContext'
+  /night-wakings:
+    post:
+      operationId: createNightWaking
+      summary: createNightWaking
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      responses:
+        '201':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NightWaking'
+        default:
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NightWakingCreate'
+  /night-wakings/{waking_id}:
+    patch:
+      operationId: updateNightWaking
+      summary: updateNightWaking
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NightWaking'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - in: path
+        name: waking_id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventBounds'
+    delete:
+      operationId: deleteNightWaking
+      summary: deleteNightWaking
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      responses:
+        '204':
+          description: Успешный ответ
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - in: path
+        name: waking_id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
   /settling:
     post:
       operationId: startSettling
@@ -695,6 +766,31 @@ paths:
             schema:
               $ref: '#/components/schemas/SettlingStart'
   /settling/{attempt_id}:
+    put:
+      operationId: updateSettling
+      summary: updateSettling
+      security:
+      - sessionCookie: []
+        csrfToken: []
+      responses:
+        '204':
+          description: Успешный ответ
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - in: path
+        name: attempt_id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventBounds'
     patch:
       operationId: finishSettling
       summary: finishSettling
@@ -953,6 +1049,57 @@ components:
       required:
       - date
       - text
+    EventBounds:
+      type: object
+      additionalProperties: false
+      required: [start, end]
+      properties:
+        start:
+          type: string
+          format: date-time
+        end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+    NightWakingCreate:
+      type: object
+      additionalProperties: false
+      required: [day, start, end]
+      properties:
+        day:
+          type: string
+          format: date
+        start:
+          type: string
+          format: date-time
+        end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+    NightWaking:
+      type: object
+      additionalProperties: false
+      required: [id, version, sleep_id, start, end]
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        sleep_id:
+          type: string
+          format: uuid
+        start:
+          type: string
+          format: date-time
+        end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
     SettlingStart:
       type: object
       additionalProperties: false
@@ -1351,6 +1498,13 @@ components:
           - type: 'null'
         ends_night:
           type: boolean
+        duration_seconds:
+          type: integer
+          minimum: 0
+        wakings:
+          type: array
+          items:
+            $ref: '#/components/schemas/NightWaking'
         events:
           type: array
           items:
@@ -1461,6 +1615,8 @@ components:
           - awake
           - nap
           - night
+          - night_awake
+          - settling
         status:
           type: string
           enum:

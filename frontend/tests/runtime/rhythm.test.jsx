@@ -33,3 +33,11 @@ test('draws the incoming night and updates calculations when another day is sele
     expect(calculations.getByText('20:30')).toBeVisible();
     expect(calculations.queryByText('20:00')).not.toBeInTheDocument();
 });
+
+test('keeps night wakings visible in the shared scale with their own chart color', () => {
+    const waking = { ...rows[0], nightWakings: [[1500, 1545]] };
+    expect(rhythmScale([waking])).toEqual({ from: 300, to: 1590 });
+    const { container } = render(<Rhythm report={{ rows: [waking], from: waking.date, calendar_days: 1 }} />);
+    expect(screen.getByText('Ночное бодрствование')).toBeVisible();
+    expect(container.querySelector('.rhythm-svg .night-awake')).not.toBeNull();
+});

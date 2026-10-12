@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { ChildCard } from './Child.jsx';
 import { CurrentInterval } from './CurrentInterval.jsx';
-import { DayContext, SettlingNotes } from './DayContext.jsx';
+import { DayContext } from './DayContext.jsx';
 import { NightDay, WelcomeDay } from './DayStates.jsx';
 import { DurationValue } from './DurationValue.jsx';
 import { ActionButton, Loading } from './Forms.jsx';
@@ -14,6 +14,7 @@ import { Button } from './Mobile.jsx';
 import { Note, OrphanedNotes } from './Notes.jsx';
 import { PageHeading } from './PageHeading.jsx';
 import { PlanCard } from './Schedules.jsx';
+import { SettlingForm } from './SettlingForm.jsx';
 import { Sheet } from './Sheet.jsx';
 import { SleepForm } from './SleepForm.jsx';
 import { clockTime, dateShift, duration, today } from './time.js';
@@ -94,10 +95,10 @@ function ScheduleChoice({ day }) {
 ScheduleChoice.propTypes = { day: PropTypes.object.isRequired };
 
 function TimelineEntry({ entry, day, edit, readOnly }) {
-    const sleep = day.sleeps.find((item) => item.id === entry.sleep_id);
+    const sleep = editableEntry(entry, day);
     return (
         <section
-            className={`time-row ${entry.kind} ${entry.status === 'forecast' ? 'forecast' : ''} ${entry.kind === 'awake' ? '' : 'sleep'}`}
+            className={`time-row ${entry.kind.replace('_', '-')} ${entry.status === 'forecast' ? 'forecast' : ''} ${entry.kind === 'awake' ? '' : 'sleep'}`}
         >
             <time className="time-label">{clockTime(entry.start, day.timezone)}</time>
             <div className="time-track" aria-hidden="true">
@@ -107,7 +108,7 @@ function TimelineEntry({ entry, day, edit, readOnly }) {
                 <div className="interval-top">
                     <h3>
                         {intervalNames[entry.kind]}
-                        {entry.kind !== 'night' &&
+                        {['nap', 'awake'].includes(entry.kind) &&
                             ` ${day.timeline.filter((item) => item.kind === entry.kind).indexOf(entry) + 1}`}
                         {entry.status === 'ongoing' && <span className="now-tag">сейчас</span>}
                     </h3>
@@ -119,9 +120,10 @@ function TimelineEntry({ entry, day, edit, readOnly }) {
                 </p>
                 {entry.status !== 'forecast' && (
                     <>
-                        <Note interval={entry} readOnly={readOnly} />
+                        {!['night_awake', 'settling'].includes(entry.kind) && (
+                            <Note interval={entry} readOnly={readOnly} />
+                        )}
                         {!readOnly && <IntervalControls entry={entry} day={day} edit={edit} sleep={sleep} />}
-                        <SettlingNotes entry={entry} day={day} />
                     </>
                 )}
             </div>
@@ -154,13 +156,17 @@ function DayContent({ day, owner }) {
                         {issues[issue]}
                     </p>
                 ))}
-            {editing !== undefined && (
-                <SleepForm
-                    key={`${editing?.id || 'new'}-${day.date}`}
-                    sleep={editing}
-                    day={day}
-                    close={() => setEditing(undefined)}
-                />
+            {editing?.kind === 'settling' ? (
+                <SettlingForm attempt={editing} day={day} close={() => setEditing(undefined)} />
+            ) : (
+                editing !== undefined && (
+                    <SleepForm
+                        key={`${editing?.id || 'new'}-${day.date}`}
+                        sleep={editing}
+                        day={day}
+                        close={() => setEditing(undefined)}
+                    />
+                )
             )}
             <div className="section-head">
                 <h2>Лента дня</h2>
@@ -181,7 +187,7 @@ function DayContent({ day, owner }) {
                 )}
                 {day.timeline.map((entry, index) => (
                     <TimelineEntry
-                        key={entry.id || `forecast-${index}`}
+                        key={`${entry.id || 'forecast'}-${index}`}
                         entry={entry}
                         day={day}
                         edit={setEditing}
@@ -207,7 +213,7 @@ function CompletedNight({ day }) {
             <span className="kicker">ПРЕДЫДУЩАЯ НОЧЬ · {night.day}</span>
             <p>
                 {clockTime(night.start, day.timezone)} — {clockTime(night.end, day.timezone)} ·{' '}
-                {duration((Date.parse(night.end) - Date.parse(night.start)) / 1000)}
+                {duration(night.duration_seconds ?? (Date.parse(night.end) - Date.parse(night.start)) / 1000)}
             </p>
             <p className="subtle">Завершение этой ночи задаёт начало дня. В сегодняшние итоги не входит.</p>
         </div>
@@ -400,4 +406,13 @@ function metricDetail(key, value, schedule) {
             ).replace('мин', 'м')
         );
     return 'с текущим периодом';
+}
+
+function editableEntry(entry, day) {
+    const parent = day.sleeps.find((item) => item.id === entry.sleep_id);
+    return entry.kind === 'night_awake'
+        ? { ...parent?.wakings?.find((item) => item.id === entry.id), day: parent?.day, kind: 'night_awake' }
+        : entry.kind === 'settling'
+          ? { ...day.settling.find((item) => item.id === entry.id), end: entry.end, kind: 'settling' }
+          : parent;
 }
