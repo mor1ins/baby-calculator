@@ -216,3 +216,12 @@
 .settling-dot::before {
     background: var(--chart-settling);
 }
+
+.rhythm-rows {
+    margin-inline: -12px;
+}
+
+.rhythm-row {
+    padding-inline: 14px;
+    border-radius: 0;
+}
