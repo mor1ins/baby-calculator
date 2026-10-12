@@ -166,7 +166,12 @@ export function Rhythm({ report }) {
                     Общие ночные участки по краям сокращены. Короткие укладывания увеличены для видимости.
                 </p>
             </Card>
-            {row && <DayDetail row={row} />}
+            {row && (
+                <>
+                    <DayDetail row={row} />
+                    <DayCalculations row={row} />
+                </>
+            )}
         </>
     );
 }
@@ -180,7 +185,6 @@ function DayDetail({ row }) {
                 Подъём <strong>{minuteTime(row.morning)}</strong>
                 <span aria-hidden="true">·</span>Ночь <strong>{minuteTime(row.nightStart)}</strong>
             </p>
-            <DayCalculations row={row} />
             <ol className="daily-sequence">
                 {row.timeline
                     .filter((entry) => entry.kind !== 'night')
@@ -225,8 +229,9 @@ DayDetail.propTypes = { row: PropTypes.object.isRequired };
 
 function DayCalculations({ row }) {
     return (
-        <section className="compare-day" aria-label="Расчёты дня и следующей ночи">
-            <h3>День → следующая ночь</h3>
+        <Card className="compare-day" aria-label="Расчёты дня и следующей ночи">
+            <h2>Расчёты</h2>
+            <p className="subtle">День → следующая ночь</p>
             <dl>
                 {[
                     ['Дневной сон', reportDuration(row.nap)],
@@ -241,7 +246,7 @@ function DayCalculations({ row }) {
                     </div>
                 ))}
             </dl>
-        </section>
+        </Card>
     );
 }
 DayCalculations.propTypes = DayDetail.propTypes;

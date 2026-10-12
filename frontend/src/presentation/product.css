@@ -225,15 +225,3 @@
     padding-inline: 14px;
     border-radius: 0;
 }
-
-.daily-detail .compare-day {
-    margin-block: 20px;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-}
-
-.daily-detail .compare-day > h3 {
-    padding: 0;
-}
