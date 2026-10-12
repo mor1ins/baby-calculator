@@ -38,17 +38,20 @@ class ReportsRepository:
             id=diary["id"], start=start, end=end,
         )
         documents = [await self.days.document(diary, row["date"]) for row in rows]
+        preceding = None
+        if documents and documents[0]["previous_night"]:
+            preceding = await self.days.document(diary, documents[0]["previous_night"]["day"])
         changes = await self.days.records.rows(
             """SELECT id,date,text,version FROM routine_changes WHERE diary_id=:id AND date BETWEEN :start AND :end
                ORDER BY date,id""", id=diary["id"], start=start, end=end,
         )
         if public:
-            for document in documents:
+            for document in documents + ([preceding] if preceding else []):
                 document["comments"] = []
                 document["context"] = {key: value for key, value in document["context"].items()
                                        if key in {"help", "mood"}}
         return {"from": start, "to": end, "timezone": diary["timezone"], "as_of": op.now,
-                "documents": documents, "changes": changes,
+                "documents": documents, "preceding_document": preceding, "changes": changes,
                 "child": public_child(diary["child"], today) if public else None}
 
     async def create_share(self, op: Operation, user: dict[str, Any]) -> OperationResult:

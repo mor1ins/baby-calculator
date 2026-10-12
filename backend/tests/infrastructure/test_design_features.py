@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from uuid import uuid4
 
 import pytest
 from dependency_injector import providers
@@ -31,6 +32,9 @@ def test_private_snapshot_and_versions(client: TestClient, sql_container: Contai
         if kind == "nap" and not with_nap:
             continue
         write(client, "POST", "/sleeps", {"day": cycle, "kind": kind, "start": start, "end": end})
+    write(client, "PUT", f"/comments/{uuid4()}", {
+        "target_id": client.get("/api/v1/days/2026-10-02").json()["timeline"][0]["id"],
+        "text": "private night note"}, 0)
     day = client.get("/api/v1/days/2026-10-03").json()
     write(client, "PUT", "/days/2026-10-03/context", {"note": "private note", "help": "На руках"}, day["version"])
     period = {"from": "2026-10-03", "to": "2026-10-03"}
@@ -39,6 +43,8 @@ def test_private_snapshot_and_versions(client: TestClient, sql_container: Contai
     assert report["averages"]["nap"] == (60 if with_nap else 0)
     assert report["rows"][0]["lastWake"] == (540 if with_nap else 900)
     assert report["rows"][0]["context"] == "private note"
+    assert report["export_days"][0]["timeline"][0]["start"] == "2026-10-02T18:00:00Z"
+    assert report["export_days"][0]["timeline"][0]["comment"]["text"] == "private night note"
     share = write(client, "POST", "/shares", period)
     write(client, "PUT", "/child", {**profile, "name": "Новое имя"}, 1)
     with TestClient(client.app) as anonymous:

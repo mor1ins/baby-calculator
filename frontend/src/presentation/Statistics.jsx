@@ -142,7 +142,7 @@ export function PublicReport() {
                             }
                         >
                             <Icon name="download" />
-                            Скачать CSV
+                            Скачать Excel
                         </ActionButton>
                     </div>
                     <div className="public-report-heading">

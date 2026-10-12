@@ -1,26 +1,4 @@
-function csvCell(value) {
-    const text = String(value ?? '');
-    return `"${(/^[=+@\-\t\r]/.test(text) ? "'" + text : text).replaceAll('"', '""')}"`;
-}
-
-export function reportCsv(report, notes) {
-    const rows = [['cycle_date', 'timezone', 'type', 'start', 'end', 'duration_minutes', ...(notes ? ['note'] : [])]];
-    for (const day of report.rows) {
-        for (const sleep of day.sleeps) {
-            const note = day.timeline.find((entry) => entry.sleep_id === sleep.id)?.comment?.text || '';
-            rows.push([
-                day.date,
-                day.timezone,
-                sleep.kind,
-                sleep.start,
-                sleep.end,
-                sleep.end ? (Date.parse(sleep.end) - Date.parse(sleep.start)) / 60000 : '',
-                ...(notes ? [note] : []),
-            ]);
-        }
-    }
-    return '\uFEFF' + rows.map((row) => row.map(csvCell).join(';')).join('\r\n');
-}
+import { reportWorkbook } from './reportWorkbook.js';
 
 export class BrowserDiaryRepository {
     constructor(diary, browser) {
@@ -35,10 +13,9 @@ export class BrowserDiaryRepository {
                 command.values.report ||
                 (await this.diary.execute({ action: 'report', values: command.values.period }, signal));
             signal?.throwIfAborted();
-            this.browser.download(
-                reportCsv(report, command.values.notes === true),
-                `tishe-${report.from}-${report.to}.csv`,
-            );
+            const file = await reportWorkbook(report, command.values.notes !== false);
+            signal?.throwIfAborted();
+            this.browser.download(file, `tishe-${report.from}-${report.to}.xlsx`);
             return null;
         }
         return this.diary.execute(command, signal);
@@ -51,7 +28,11 @@ export const browserFiles = {
     },
     copy: (value) => navigator.clipboard.writeText(value),
     download(value, name) {
-        const url = URL.createObjectURL(new Blob([value], { type: 'text/csv;charset=utf-8' }));
+        const url = URL.createObjectURL(
+            new Blob([value], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            }),
+        );
         const anchor = document.createElement('a');
         anchor.href = url;
         anchor.download = name;

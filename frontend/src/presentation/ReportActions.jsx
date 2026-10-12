@@ -44,7 +44,7 @@ export function ReportActions({ report, close }) {
     return (
         <Sheet title="Действия со статистикой" close={close}>
             <Setting
-                title={mutation.isPending ? 'Готовим CSV…' : 'Скачать CSV'}
+                title={mutation.isPending ? 'Готовим Excel…' : 'Скачать Excel'}
                 subtitle="Экспорт записей за период"
                 icon="download"
                 disabled={mutation.isPending}

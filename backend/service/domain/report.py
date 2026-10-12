@@ -66,6 +66,29 @@ def highlights(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def export_days(rows: list[dict[str, Any]], start: str, end: str) -> list[dict[str, Any]]:
+    days: dict[str, Any] = {}
+    for row in rows:
+        night = next((item for item in row["sleeps"] if item["kind"] == "night"), None)
+        final = next((item for item in reversed(row["sleeps"]) if item["ends_night"]), None)
+        wake_date = final["end"].astimezone(ZoneInfo(row["timezone"])).date() if final else row["date"]
+        for entry in row["timeline"]:
+            target = str(wake_date if night and entry["start"] >= night["start"] else row["date"])
+            if start <= target <= end:
+                day = days.setdefault(target, {
+                    "date": target, "timezone": row["timezone"], "timeline": [], "notes": []})
+                day["timeline"].append(entry)
+        target = str(row["date"])
+        if start <= target <= end:
+            day = days.setdefault(target, {
+                "date": target, "timezone": row["timezone"], "timeline": [], "notes": []})
+            day["notes"] = ([row["context"]] if row["context"] else []) + [
+                note["text"] for note in row["comments"] if note["target_id"] is None]
+    for day in days.values():
+        day["timeline"].sort(key=lambda entry: entry["start"])
+    return list(days.values())
+
+
 def changes_summary(changes: list[dict[str, Any]], rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for change in changes:
@@ -81,13 +104,17 @@ class CalculateReportHandler:
         data = message.document
         now = timestamp(data["as_of"])
         assert now is not None
-        rows = [report_row(restore(document), now) for document in data["documents"] if document["sleeps"]]
+        all_rows = [report_row(restore(document), now) for document in data["documents"]]
+        rows = [row for row in all_rows if row["sleeps"]]
+        preceding = data.get("preceding_document")
+        exported = ([report_row(restore(preceding), now)] if preceding else []) + all_rows
         complete = [row for row in rows if row["complete"]]
         averages = {key: mean(row[key] for row in complete) if complete else None
                     for key in ("nap", "night", "awake", "count")}
         averages["total"] = mean(row["nap"] + row["night"] for row in complete) if complete else None
-        return {key: value for key, value in data.items() if key != "documents"} | {
+        return {key: value for key, value in data.items() if key not in {"documents", "preceding_document"}} | {
             "rows": rows, "highlights": highlights(rows), "changes": changes_summary(data["changes"], rows),
+            "export_days": export_days(exported, str(data["from"]), str(data["to"])),
             "averages": averages, "complete_count": len(complete),
             "calendar_days": (date.fromisoformat(str(data["to"])) - date.fromisoformat(str(data["from"]))).days + 1,
         }

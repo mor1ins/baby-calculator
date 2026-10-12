@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from '@playwright/test';
-test('settling, child, report tabs, anonymous CSV and share revocation',async({page,context,browser},testInfo)=>{
+test('settling, child, report tabs, anonymous Excel and share revocation',async({page,context,browser},testInfo)=>{
  test.setTimeout(90000);
  const api=context.request,base='/api/v1';
  let session=await (await api.get(base+'/session')).json();
@@ -50,13 +50,18 @@ test('settling, child, report tabs, anonymous CSV and share revocation',async({p
  await page.setViewportSize({width:390,height:844});
  await page.emulateMedia({colorScheme:'light'});
  await page.getByRole('button',{name:'Действия со статистикой'}).click();
+ const privateDownload=page.waitForEvent('download');
+ await page.getByRole('button',{name:/Скачать Excel/}).click();
+ assert.equal((await privateDownload).suggestedFilename(),`tishe-${yesterday}-${today}.xlsx`);
+ await page.getByRole('button',{name:'Действия со статистикой'}).click();
  await page.getByRole('button',{name:/Поделиться/}).click();
  await page.getByRole('button',{name:'Создать публичную ссылку',exact:true}).click();
  const link=await page.getByRole('link',{name:'Открыть публичный отчёт'}).getAttribute('href');
  const anonymous=await browser.newContext({baseURL:new URL(page.url()).origin});const publicPage=await anonymous.newPage();
  await publicPage.goto(link);
  await publicPage.getByRole('heading',{name:'Ритм сна'}).waitFor();
- const download=publicPage.waitForEvent('download');await publicPage.getByRole('button',{name:'Скачать CSV'}).click();await download;
+ const download=publicPage.waitForEvent('download');await publicPage.getByRole('button',{name:'Скачать Excel'}).click();
+ assert.equal((await download).suggestedFilename(),`tishe-${yesterday}-${today}.xlsx`);
  await page.getByRole('button',{name:'Отозвать ссылку',exact:true}).click();
  await publicPage.reload();await publicPage.getByRole('heading',{name:'Отчёт недоступен'}).waitFor();
 
