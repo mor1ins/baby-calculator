@@ -5,6 +5,7 @@ import { DurationValue } from './DurationValue.jsx';
 import { ActionButton } from './Forms.jsx';
 import { Icon } from './Icon.jsx';
 import { Button } from './Mobile.jsx';
+import { Sheet } from './Sheet.jsx';
 import { SleepForm } from './SleepForm.jsx';
 import { clockTime, dateShift } from './time.js';
 import { useWrite } from './useApi.js';
@@ -54,15 +55,14 @@ export function NightDay({ day }) {
                     <span className="live-dot" />
                     Тихое время
                 </div>
-                <div className="hero-art" aria-hidden="true" />
                 <h2>{waking ? 'Малыш бодрствует' : 'Малыш спит уже'}</h2>
                 <div className="countdown">
                     <DurationValue seconds={nightSeconds(day, sleep, waking)} />
                 </div>
                 <p className="hero-detail">С {clockTime(waking?.start || sleep.start, day.timezone)}</p>
-                <div className="settling-active">
+                <div className="night-control">
                     <ActionButton
-                        className="settling-without-sleep"
+                        className="primary night-toggle"
                         action={() =>
                             mutation.mutateAsync({
                                 action: waking ? 'updateNightWaking' : 'createNightWaking',
@@ -78,22 +78,16 @@ export function NightDay({ day }) {
                     </ActionButton>
                 </div>
             </section>
-            <Button className="outline-button night-finish" onClick={() => setOpen(true)}>
-                <Icon name="sun" />
-                Завершить ночной сон
-            </Button>
-            <Button className="text-button" onClick={() => setOpen('waking')}>
-                Указать время ночного бодрствования
-            </Button>
-            {open && (
-                <SleepForm
-                    sleep={open === 'waking' ? null : sleep}
-                    day={day}
-                    kind={open === 'waking' ? 'night_awake' : 'night'}
-                    finish={open !== 'waking'}
-                    close={() => setOpen(false)}
-                />
-            )}
+            <div className="night-secondary-actions">
+                <Button className="text-button night-end" onClick={() => setOpen(true)}>
+                    <Icon name="sun" />
+                    Завершить ночной сон
+                </Button>
+                <Button className="icon-button" aria-label="Действия с ночным сном" onClick={() => setOpen('actions')}>
+                    <Icon name="more" />
+                </Button>
+            </div>
+            <NightDialog open={open} setOpen={setOpen} day={day} sleep={sleep} />
         </>
     );
 }
@@ -103,3 +97,32 @@ function nightSeconds(day, sleep, waking) {
     if (waking) return (Date.parse(day.as_of) - Date.parse(waking.start)) / 1000;
     return sleep.duration_seconds ?? (Date.parse(day.as_of) - Date.parse(sleep.start)) / 1000;
 }
+
+function NightDialog({ open, setOpen, day, sleep }) {
+    const close = () => setOpen(false);
+    if (open === 'actions')
+        return (
+            <Sheet title="Ночной сон" close={close}>
+                <Button className="text-button" onClick={() => setOpen('waking')}>
+                    <Icon name="clock" />
+                    Указать время ночного бодрствования
+                </Button>
+            </Sheet>
+        );
+    if (!open) return null;
+    return (
+        <SleepForm
+            sleep={open === 'waking' ? null : sleep}
+            day={day}
+            kind={open === 'waking' ? 'night_awake' : 'night'}
+            finish={open !== 'waking'}
+            close={close}
+        />
+    );
+}
+NightDialog.propTypes = {
+    open: PropTypes.oneOfType([PropTypes.bool, PropTypes.string]).isRequired,
+    setOpen: PropTypes.func.isRequired,
+    day: PropTypes.object.isRequired,
+    sleep: PropTypes.object.isRequired,
+};

@@ -242,3 +242,48 @@
 .hero .settling-without-sleep.mobile-button {
     color: inherit;
 }
+
+.night-hero.hero {
+    padding: 24px 20px 20px;
+}
+
+.night-control {
+    margin-top: 24px;
+}
+
+.night-hero .night-toggle.mobile-button {
+    width: 100%;
+    min-height: 48px;
+    margin: 0;
+    border: 0;
+    border-radius: 14px;
+    background: var(--night-button-bg);
+    color: var(--night-button-ink);
+}
+
+.night-secondary-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.night-secondary-actions .night-end {
+    flex: 1;
+    justify-content: flex-start;
+    min-height: 48px;
+    padding-inline: 8px;
+    font-size: 0.875rem;
+}
+
+.night-secondary-actions .icon-button {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border: 0;
+    background: transparent;
+}
+
+.night-secondary-actions .mobile-button {
+    color: var(--purple);
+}

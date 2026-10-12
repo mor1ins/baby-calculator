@@ -28,6 +28,12 @@ test('night waking can be entered, timed, edited and shown in the rhythm chart',
     const yesterday = localDate(new Date(Date.now() - 86400000));
     await write('/sleeps', { day: yesterday, kind: 'night', start: `${yesterday}T21:00:00+03:00`, end: null });
     await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Малыш спит уже' })).toBeVisible();
+    for (const theme of ['light', 'dark']) {
+        await page.emulateMedia({ colorScheme: theme });
+        await page.screenshot({ path: testInfo.outputPath(`night-home-${theme}.png`), fullPage: true });
+    }
+    await page.getByRole('button', { name: 'Действия с ночным сном' }).click();
     await page.getByRole('button', { name: 'Указать время ночного бодрствования' }).click();
     await page.getByLabel('Начало ночного бодрствования', { exact: true }).fill(`${yesterday}T22:00`);
     await page.getByLabel(/Конец ночного бодрствования/).fill(`${yesterday}T22:30`);
@@ -37,10 +43,6 @@ test('night waking can be entered, timed, edited and shown in the rhythm chart',
     await expect(page.getByRole('heading', { name: 'Малыш бодрствует' })).toBeVisible();
     await page.reload();
     await expect(page.getByRole('button', { name: 'Снова уснул', exact: true })).toBeVisible();
-    const actionColors = await page.locator('.settling-active button').evaluate((button) => ({
-        text: getComputedStyle(button).color, container: getComputedStyle(button.parentElement).color,
-    }));
-    assert.equal(actionColors.text, actionColors.container);
     await page.screenshot({ path: testInfo.outputPath('night-awake-mobile.png'), fullPage: true });
     await page.getByRole('button', { name: 'Снова уснул', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Малыш спит уже' })).toBeVisible();
