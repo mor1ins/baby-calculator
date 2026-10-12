@@ -4,6 +4,7 @@ import { Fragment, useState } from 'react';
 import { ChangeEditor } from './DayContext.jsx';
 import { ActionButton } from './Forms.jsx';
 import { Button, Card, Section } from './Mobile.jsx';
+import { rhythmScale } from './rhythmScale.js';
 import { dateShift, duration } from './time.js';
 import { useWrite } from './useApi.js';
 
@@ -62,35 +63,43 @@ export function Overview({ report }) {
 }
 Overview.propTypes = { report: PropTypes.object.isRequired };
 
-function RhythmBar({ start, end, kind }) {
-    if (start === null || end === null) return null;
-    const left = Math.max(0, (start - 390) / 14.4),
-        right = Math.min(100, (end - 390) / 14.4);
+function RhythmBar({ start, end, kind, scale }) {
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+    const left = Math.max(0, ((start - scale.from) / (scale.to - scale.from)) * 100);
+    const right = Math.min(100, ((end - scale.from) / (scale.to - scale.from)) * 100);
     if (right <= left) return null;
-    const hatch = Array.from({ length: Math.ceil((right - left) / 1.5) }, (_, index) => {
-        const x = left + index * 1.5;
-        return `M${x} 10L${Math.min(right, x + 1.5)} 0`;
-    }).join('');
-    return <path className={kind} d={kind === 'settling' ? hatch : `M${left} 0H${right}V10H${left}Z`} />;
+    const visibleLeft = kind === 'settling' ? Math.max(0, Math.min(left, right - 1.6)) : left;
+    return <path className={kind} d={`M${visibleLeft} 0H${right}V10H${visibleLeft}Z`} />;
 }
-RhythmBar.propTypes = { start: PropTypes.number, end: PropTypes.number, kind: PropTypes.string.isRequired };
+RhythmBar.propTypes = {
+    start: PropTypes.number,
+    end: PropTypes.number,
+    kind: PropTypes.string.isRequired,
+    scale: PropTypes.object.isRequired,
+};
 
 export function Rhythm({ report }) {
     const [selected, setSelected] = useState(null);
     const row = report.rows.find((item) => item.date === selected) || report.rows.at(-1);
+    const scale = rhythmScale(report.rows);
     return (
         <>
             <Section title="Каждые сутки рядом">
-                <span>06:30 → 06:30</span>
+                <span>
+                    {minuteTime(scale.from)} → {minuteTime(scale.to)}
+                </span>
             </Section>
             <p className="subtle">Выберите строку, чтобы рассмотреть день.</p>
             <Card className="rhythm-card">
                 <div className="rhythm-legend">
                     <span className="nap-dot">Днём</span>
-                    <span className="night-dot">Ночной интервал</span>
+                    <span className="night-dot">Ночной сон</span>
+                    <span className="settling-dot">Укладывание</span>
                 </div>
                 <div className="rhythm-axis">
-                    {['06:30', '12:30', '18:30', '00:30', '06:30'].map((label, index) => (
+                    {Array.from({ length: 5 }, (_, index) =>
+                        minuteTime(Math.round(scale.from + ((scale.to - scale.from) * index) / 4)),
+                    ).map((label, index) => (
                         <span key={index}>{label}</span>
                     ))}
                 </div>
@@ -104,7 +113,7 @@ export function Rhythm({ report }) {
                                 key={date}
                                 type="button"
                                 disabled={!item}
-                                aria-pressed={date === row.date}
+                                aria-pressed={date === row?.date}
                                 aria-label={`Расписание ${shortDate(date)}`}
                                 onClick={() => setSelected(date)}
                             >
@@ -117,11 +126,33 @@ export function Rhythm({ report }) {
                                             preserveAspectRatio="none"
                                             aria-hidden="true"
                                         >
+                                            <RhythmBar
+                                                start={scale.from}
+                                                end={item.morning}
+                                                kind="night"
+                                                scale={scale}
+                                            />
                                             {item.naps.map(([start, end], position) => (
-                                                <RhythmBar key={position} start={start} end={end} kind="nap" />
+                                                <RhythmBar
+                                                    key={position}
+                                                    start={start}
+                                                    end={end}
+                                                    kind="nap"
+                                                    scale={scale}
+                                                />
                                             ))}
-                                            <RhythmBar start={item.settleStart} end={item.nightStart} kind="settling" />
-                                            <RhythmBar start={item.nightStart} end={item.nightEnd} kind="night" />
+                                            <RhythmBar
+                                                start={item.nightStart}
+                                                end={item.nightEnd}
+                                                kind="night"
+                                                scale={scale}
+                                            />
+                                            <RhythmBar
+                                                start={item.settleStart}
+                                                end={item.nightStart}
+                                                kind="settling"
+                                                scale={scale}
+                                            />
                                         </svg>
                                     ) : (
                                         <small>Нет записей</small>
@@ -131,9 +162,11 @@ export function Rhythm({ report }) {
                         );
                     })}
                 </div>
-                <p className="form-note">Штриховка — укладывание. Ночь продолжается на следующую дату.</p>
+                <p className="form-note">
+                    Общие ночные участки по краям сокращены. Короткие укладывания увеличены для видимости.
+                </p>
             </Card>
-            <DayDetail row={row} />
+            {row && <DayDetail row={row} />}
         </>
     );
 }

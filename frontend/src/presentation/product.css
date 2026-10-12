@@ -206,7 +206,13 @@
 }
 
 .rhythm-svg .settling {
-    fill: none;
-    stroke: var(--chart-event);
-    stroke-width: 0.35;
+    fill: var(--chart-settling);
+}
+
+.rhythm-legend {
+    flex-wrap: wrap;
+}
+
+.settling-dot::before {
+    background: var(--chart-settling);
 }
