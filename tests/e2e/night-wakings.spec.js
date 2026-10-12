@@ -64,13 +64,16 @@ test('night waking can be entered, timed, edited and shown in the rhythm chart',
 });
 
 test('settling is a timeline event with editable boundaries', async ({ page, context }, testInfo) => {
-    const { write } = await account(context);
     const now = new Date();
-    const today = localDate(now);
-    const yesterday = localDate(new Date(now.getTime() - 86400000));
+    const offset = now.getUTCHours() >= 1 ? 0 : 3;
+    const { write } = await account(context, offset ? 'Europe/Moscow' : 'UTC');
+    const input = value => new Date(value.getTime() + offset * 3600000).toISOString().slice(0, 16);
+    const today = input(now).slice(0, 10);
+    const yesterday = input(new Date(now.getTime() - 86400000)).slice(0, 10);
+    const zone = offset ? '+03:00' : 'Z';
     const start = new Date(now.getTime() - 30 * 60000);
     const sleepStart = new Date(now.getTime() - 10 * 60000);
-    await write('/sleeps', { day: yesterday, kind: 'night', start: `${yesterday}T18:00:00+03:00`, end: `${today}T00:00:00+03:00` });
+    await write('/sleeps', { day: yesterday, kind: 'night', start: `${yesterday}T18:00:00${zone}`, end: `${today}T00:00:00${zone}` });
     const attempt = await write('/settling', { day: today });
     await write(`/settling/${attempt.id}`, { start: start.toISOString(), end: null }, 'PUT', attempt.version);
     await write('/sleeps', { day: today, kind: 'nap', start: sleepStart.toISOString(), end: null });
@@ -78,8 +81,8 @@ test('settling is a timeline event with editable boundaries', async ({ page, con
     const row = page.locator('.time-row.settling');
     await expect(row.getByRole('heading', { name: 'Укладывание', exact: true })).toBeVisible();
     await row.getByRole('button', { name: 'Изменить интервал' }).click();
-    await page.getByLabel('Начало укладывания').fill(localInput(new Date(start.getTime() + 5 * 60000)));
-    await page.getByLabel('Конец укладывания').fill(localInput(new Date(sleepStart.getTime() - 2 * 60000)));
+    await page.getByLabel('Начало укладывания').fill(input(new Date(start.getTime() + 5 * 60000)));
+    await page.getByLabel('Конец укладывания').fill(input(new Date(sleepStart.getTime() - 2 * 60000)));
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
     await expect(row).toContainText('13 м');
     await page.screenshot({ path: testInfo.outputPath('settling-edited.png'), fullPage: true });
