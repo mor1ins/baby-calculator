@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { useState } from 'react';
 
 import { DurationValue } from './DurationValue.jsx';
+import { FinishNight } from './FinishNight.jsx';
 import { ActionButton } from './Forms.jsx';
 import { Icon } from './Icon.jsx';
 import { Button } from './Mobile.jsx';
@@ -80,7 +81,7 @@ export function NightDay({ day }) {
                     </Button>
                 </div>
             </section>
-            {open && <SleepForm sleep={sleep} day={day} finish close={() => setOpen(false)} />}
+            {open && <FinishNight sleep={sleep} day={day} close={() => setOpen(false)} />}
         </>
     );
 }

@@ -60,6 +60,17 @@ test('night waking can be entered, timed, edited and shown in the rhythm chart',
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
         await page.screenshot({ path: testInfo.outputPath(`night-rhythm-${theme}.png`), fullPage: true });
     }
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Проснулся', exact: true }).click();
+    const last = day.sleeps[0].wakings.at(-1);
+    await expect(page.getByLabel('Начало сна', { exact: true })).toHaveValue(localInput(new Date(last.end)));
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const finished = (await read(`/days/${yesterday}`)).sleeps[0];
+    assert.equal(finished.start, day.sleeps[0].start);
+    assert.deepEqual(finished.wakings, day.sleeps[0].wakings);
+    assert(finished.end);
+
 });
 
 test('settling is a timeline event with editable boundaries', async ({ page, context }, testInfo) => {

@@ -87,22 +87,45 @@ function morningScenario() {
     return { night, morning, execute, runtime: createRuntime({ diaryRepository: { execute } }) };
 }
 
-it('opens the ongoing night on the morning home screen and returns to today after finishing', async () => {
-    const { runtime, morning, execute } = morningScenario();
-    showDay(runtime, morning, '/');
-    expect(await screen.findByRole('heading', { name: 'Малыш спит уже' })).toBeVisible();
-    expect(screen.queryByText('Продолжается сон предыдущего дня.')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Проснулся', exact: true }));
-    expect(screen.getByLabelText('День цикла')).toHaveValue('2026-10-10');
-    expect(screen.getByLabelText('Конец сна (пусто — ещё спит)')).toHaveValue('2026-10-11T09:00');
-    await userEvent.click(screen.getByRole('button', { name: 'Сохранить', exact: true }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(await screen.findByRole('heading', { name: 'Сегодня', exact: true })).toBeVisible();
-    expect(execute.mock.calls.find(([request]) => request.action === 'updateSleep')[0]).toMatchObject({
-        key: 'night',
-        values: { end: '2026-10-11T06:00:00Z' },
-    });
-});
+it.each(['none', 'resumed', 'awake'])(
+    'finishes the last night segment without changing earlier sleep (%s)',
+    async (state) => {
+        const { runtime, morning, night, execute } = morningScenario();
+        vi.setSystemTime(new Date('2026-10-11T06:00:45.678Z'));
+        const sleep = night.sleeps.at(-1);
+        if (state !== 'none')
+            sleep.wakings = [
+                { id: 'latest', start: '2026-10-11T02:00:00Z', end: state === 'awake' ? null : '2026-10-11T03:00:27Z' },
+                { id: 'earlier', start: '2026-10-10T22:00:00Z', end: '2026-10-10T22:20:00Z' },
+            ];
+        const original = structuredClone(sleep);
+        showDay(runtime, morning, '/');
+        expect(
+            await screen.findByRole('heading', { name: state === 'awake' ? 'Малыш бодрствует' : 'Малыш спит уже' }),
+        ).toBeVisible();
+        expect(screen.queryByText('Продолжается сон предыдущего дня.')).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Проснулся', exact: true }));
+        expect(screen.getByLabelText('День цикла')).toHaveValue('2026-10-10');
+        const start = screen.getByLabelText(state === 'awake' ? 'Начало ночного бодрствования' : 'Начало сна');
+        expect(start).toHaveValue(
+            { none: '2026-10-10T21:12', resumed: '2026-10-11T06:00', awake: '2026-10-11T05:00' }[state],
+        );
+        expect(start).toHaveAttribute('readonly');
+        expect(screen.getByLabelText('Время пробуждения')).toHaveValue('2026-10-11T09:00');
+        await userEvent.click(screen.getByRole('button', { name: 'Сохранить', exact: true }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect(await screen.findByRole('heading', { name: 'Сегодня', exact: true })).toBeVisible();
+        expect(execute.mock.calls.find(([request]) => request.action === 'updateSleep')[0]).toMatchObject({
+            key: 'night',
+            values: { end: '2026-10-11T06:00:45.678Z' },
+        });
+        expect(execute.mock.calls.find(([request]) => request.action === 'updateSleep')[0].values).toEqual({
+            end: '2026-10-11T06:00:45.678Z',
+        });
+        expect(morning.previous_night.start).toBe(original.start);
+        expect(morning.previous_night.wakings).toEqual(original.wakings);
+    },
+);
 
 it.each([
     ['/?date=2026-10-09', undefined],

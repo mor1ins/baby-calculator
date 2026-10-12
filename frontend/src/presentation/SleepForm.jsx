@@ -7,14 +7,13 @@ import { Sheet } from './Sheet.jsx';
 import { absoluteTime, inputTime } from './time.js';
 import { useWrite } from './useApi.js';
 
-export function SleepForm({ sleep, day, close, kind = 'nap', finish = false }) {
+export function SleepForm({ sleep, day, close, kind = 'nap' }) {
     const mutation = useWrite();
     const zone = day.timezone;
     const [selectedKind, setSelectedKind] = useState(sleep?.kind || kind);
     const waking = selectedKind === 'night_awake';
     const fields = sleepFields(sleep, waking);
     const baseline = sleepInputs(sleep, day, kind);
-    const initial = finish ? { ...baseline, end: inputTime(new Date().toISOString(), zone) } : baseline;
     const current = currentSleep(day, sleep);
     const submit = async (values) => {
         const command = sleepCommand({ sleep, current, values, baseline, zone, waking });
@@ -26,7 +25,7 @@ export function SleepForm({ sleep, day, close, kind = 'nap', finish = false }) {
             <p className="form-note">Время: {zone}</p>
             <Form
                 fields={fields}
-                initial={initial}
+                initial={baseline}
                 submit={submit}
                 onChange={(event) => {
                     if (event.target.name === 'kind') setSelectedKind(event.target.value);
@@ -39,7 +38,6 @@ export function SleepForm({ sleep, day, close, kind = 'nap', finish = false }) {
 SleepForm.propTypes = {
     sleep: PropTypes.object,
     kind: PropTypes.string,
-    finish: PropTypes.bool,
     day: PropTypes.object.isRequired,
     close: PropTypes.func.isRequired,
 };

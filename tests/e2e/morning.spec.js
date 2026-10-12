@@ -10,7 +10,7 @@ test('night completion defines morning; editing its note persists on the source 
     expect(created.status()).toBe(201);
     await page.goto(`/?date=${yesterday}`);
     await page.getByRole('button',{name:'Проснулся',exact:true}).click();
-    await page.getByLabel('Конец сна (пусто — ещё спит)').fill(`${today}T07:07`);
+    await page.getByLabel('Время пробуждения').fill(`${today}T07:07`);
     await page.getByRole('button',{name:'Сохранить',exact:true}).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     const night=page.locator('.time-row.night');
