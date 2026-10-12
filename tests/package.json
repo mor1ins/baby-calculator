@@ -2,6 +2,13 @@
   "name": "baby-calculator-e2e",
   "private": true,
   "type": "module",
-  "scripts": { "test": "playwright test" },
-  "devDependencies": { "@playwright/test": "^1.55.0" }
+  "scripts": {
+    "test": "playwright test",
+    "test:integration": "playwright test --project=integration",
+    "test:visual": "playwright test --project=visual"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "exceljs": "^4.4.0"
+  }
 }

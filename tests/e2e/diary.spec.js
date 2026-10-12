@@ -7,7 +7,6 @@ test('mobile registration, schedule, sleep, comment, history and logout persist'
     const email = `prototype-${Date.now()}@example.com`;
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    await page.route('**/config.js', route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__BABY_CONFIG__ = {registrationEnabled:true};'}));
     await page.goto('/register');
     await page.getByLabel('Ваше имя').fill('Тестовая мама');
     await page.getByLabel('Email', { exact: true }).fill(email);
@@ -54,6 +53,9 @@ test('mobile registration, schedule, sleep, comment, history and logout persist'
     await page.getByRole('button', { name: 'Выйти из аккаунта', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Рады видеть вас снова', exact: true })).toBeVisible();
     await page.getByLabel('Email', { exact: true }).fill(email);
+    await page.getByLabel('Пароль', { exact: true }).fill('Wrong-password-123');
+    await page.getByRole('button', { name: 'Войти', exact: true }).click();
+    await expect(page.getByRole('alert')).toBeVisible();
     await page.getByLabel('Пароль', { exact: true }).fill('Prototype-test-123');
     await page.getByRole('button', { name: 'Войти', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Новый день', exact: true })).toBeVisible();

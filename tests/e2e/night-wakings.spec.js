@@ -1,23 +1,7 @@
 import assert from 'node:assert/strict';
 import { expect, test } from '@playwright/test';
 
-async function account(context) {
-    const api = context.request;
-    let session = await (await api.get('/api/v1/session')).json();
-    const write = async (path, data, method = 'POST', version) => {
-        const response = await api.fetch('/api/v1' + path, {
-            method, data,
-            headers: { 'X-CSRF-Token': session.csrf_token, ...(version ? { 'If-Match': `"${version}"` } : {}) },
-        });
-        assert(response.ok(), await response.text());
-        return response.status() === 204 ? null : response.json();
-    };
-    session = await write('/register', {
-        email: `night-waking-${Date.now()}@example.com`, password: 'Night-Waking-test-123',
-        name: 'Тест', timezone: 'Europe/Moscow',
-    });
-    return { write, read: async (path) => (await api.get('/api/v1' + path)).json() };
-}
+import { account } from '../support/account.js';
 
 const localDate = (value) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(value);
 const localInput = (value) => new Date(value.getTime() + 3 * 3600000).toISOString().slice(0, 16);
@@ -93,4 +77,67 @@ test('settling is a timeline event with editable boundaries', async ({ page, con
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
     await expect(row).toContainText('13 м');
     await page.screenshot({ path: testInfo.outputPath('settling-edited.png'), fullPage: true });
+});
+
+
+for (const state of ['none', 'resumed', 'awake']) {
+    for (const nextDay of [false, true]) {
+        test(`wake-up ${state}, ${nextDay ? 'after' : 'before'} midnight persists through reload`, async ({ page, context }) => {
+            const { write, read } = await account(context);
+            const day = localDate(new Date(Date.now() - 2 * 86400000));
+            const following = localDate(new Date(Date.now() - 86400000));
+            const parent = await write('/sleeps', { day, kind: 'night', start: `${day}T20:00:00+03:00`, end: null });
+            const waking = state === 'none' ? null : await write('/night-wakings', {
+                day, start: `${day}T20:05:00+03:00`, end: state === 'resumed' ? `${day}T20:07:00+03:00` : null,
+            });
+            await page.goto(`/?date=${day}`);
+            await page.getByRole('button', { name: 'Проснулся', exact: true }).click();
+            const label = state === 'awake' ? 'Начало ночного бодрствования' : 'Начало сна';
+            const start = state === 'none' ? '20:00' : state === 'awake' ? '20:05' : '20:07';
+            await expect(page.getByLabel(label, { exact: true })).toHaveValue(`${day}T${start}`);
+            const end = nextDay ? `${following}T07:00` : `${day}T20:28`;
+            await page.getByLabel('Время пробуждения').fill(end);
+            await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+            await expect(page.getByRole('dialog')).toHaveCount(0);
+            const saved = (await read(`/days/${day}`)).sleeps[0];
+            expect(saved.start).toBe(parent.start);
+            expect(saved.end).toBe(new Date(`${end}:00+03:00`).toISOString().replace('.000', ''));
+            expect(saved.ends_night).toBe(nextDay);
+            if (waking) expect(saved.wakings[0].end).toBe(waking.end || saved.end);
+            expect(Boolean((await read(`/days/${following}`)).previous_night)).toBe(nextDay);
+            await page.reload();
+            await expect(page.getByRole('button', { name: 'Проснулся', exact: true })).toHaveCount(0);
+        });
+    }
+}
+
+test('manual night waking bounds can be corrected and deleted from the timeline', async ({ page, context }) => {
+    const { write, read } = await account(context);
+    const day = localDate(new Date(Date.now() - 2 * 86400000));
+    const following = localDate(new Date(Date.now() - 86400000));
+    await write('/sleeps', { day, kind: 'night', start: `${day}T21:00:00+03:00`, end: `${following}T07:00:00+03:00` });
+    await page.goto(`/?date=${day}`);
+    await page.getByRole('button', { name: 'Добавить прошедший сон', exact: true }).click();
+    await page.getByLabel('Вид сна').selectOption('night_awake');
+    await page.getByLabel('Начало ночного бодрствования', { exact: true }).fill(`${day}T22:00`);
+    await page.getByLabel('Конец ночного бодрствования (пусто — ещё бодрствует)').fill(`${day}T22:30`);
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    const row = page.locator('.time-row.night-awake');
+    await expect(row).toContainText('30 м');
+    expect((await read(`/days/${day}`)).metrics.night_sleep_seconds).toBe(34200);
+    await row.getByRole('button', { name: 'Изменить интервал', exact: true }).click();
+    await page.getByLabel('Начало ночного бодрствования', { exact: true }).fill(`${day}T20:00`);
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect(page.getByRole('alert')).toBeVisible();
+    expect((await read(`/days/${day}`)).metrics.night_sleep_seconds).toBe(34200);
+    await page.getByLabel('Начало ночного бодрствования', { exact: true }).fill(`${day}T22:10`);
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect(row).toContainText('20 м');
+    await page.reload();
+    await expect(row).toContainText('20 м');
+    await row.getByRole('button', { name: 'Изменить интервал', exact: true }).click();
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Удалить бодрствование', exact: true }).click();
+    await expect(row).toHaveCount(0);
+    expect((await read(`/days/${day}`)).metrics.night_sleep_seconds).toBe(36000);
 });

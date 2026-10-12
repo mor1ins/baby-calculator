@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { checkWorkbook } from '../support/workbook.js';
 import {test} from '@playwright/test';
 test('settling, child, report tabs, anonymous Excel and share revocation',async({page,context,browser},testInfo)=>{
  test.setTimeout(90000);
@@ -16,6 +18,13 @@ test('settling, child, report tabs, anonymous Excel and share revocation',async(
  const now=new Date(),today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow'}).format(now);
  const yesterday=new Date(Date.parse(today+'T12:00:00Z')-864e5).toISOString().slice(0,10);
  await post('/sleeps',{day:yesterday,kind:'night',start:yesterday+'T17:30:00Z',end:today+'T00:00:00+03:00'});
+ const selected=await(await api.get(base+`/days/${yesterday}`)).json();
+ const note='PRIVATE_NIGHT_NOTE';
+ await post(`/comments/${randomUUID()}`,{target_id:selected.timeline.find(item=>item.kind==='night').id,text:note},'PUT',0);
+ const outside=new Date(Date.parse(today+'T12:00:00Z')-3*864e5).toISOString().slice(0,10);
+ await post('/sleeps',{day:outside,kind:'nap',start:outside+'T10:00:00+03:00',end:outside+'T11:00:00+03:00'});
+ const outsideDay=await(await api.get(base+`/days/${outside}`)).json();
+ await post(`/comments/${randomUUID()}`,{target_id:outsideDay.timeline.find(item=>item.kind==='nap').id,text:'OUTSIDE_SELECTED_PERIOD'},'PUT',0);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/');
  await page.getByRole('button',{name:'Начать укладывание',exact:true}).click();
@@ -52,7 +61,9 @@ test('settling, child, report tabs, anonymous Excel and share revocation',async(
  await page.getByRole('button',{name:'Действия со статистикой'}).click();
  const privateDownload=page.waitForEvent('download');
  await page.getByRole('button',{name:/Скачать Excel/}).click();
- assert.equal((await privateDownload).suggestedFilename(),`tishe-${yesterday}-${today}.xlsx`);
+ const privateFile=await privateDownload;
+ assert.equal(privateFile.suggestedFilename(),`tishe-${yesterday}-${today}.xlsx`);
+ await checkWorkbook(privateFile,yesterday,today,note,true);
  await page.getByRole('button',{name:'Действия со статистикой'}).click();
  await page.getByRole('button',{name:/Поделиться/}).click();
  await page.getByRole('button',{name:'Создать публичную ссылку',exact:true}).click();
@@ -61,7 +72,9 @@ test('settling, child, report tabs, anonymous Excel and share revocation',async(
  await publicPage.goto(link);
  await publicPage.getByRole('heading',{name:'Ритм сна'}).waitFor();
  const download=publicPage.waitForEvent('download');await publicPage.getByRole('button',{name:'Скачать Excel'}).click();
- assert.equal((await download).suggestedFilename(),`tishe-${yesterday}-${today}.xlsx`);
+ const publicFile=await download;
+ assert.equal(publicFile.suggestedFilename(),`tishe-${yesterday}-${today}.xlsx`);
+ await checkWorkbook(publicFile,yesterday,today,note,false);
  await page.getByRole('button',{name:'Отозвать ссылку',exact:true}).click();
  await publicPage.reload();await publicPage.getByRole('heading',{name:'Отчёт недоступен'}).waitFor();
 
