@@ -4,7 +4,6 @@ import { useSearchParams } from 'react-router-dom';
 
 import { ChildCard } from './Child.jsx';
 import { CurrentInterval } from './CurrentInterval.jsx';
-import { DayContext } from './DayContext.jsx';
 import { NightDay, WelcomeDay } from './DayStates.jsx';
 import { DurationValue } from './DurationValue.jsx';
 import { ActionButton, Loading } from './Forms.jsx';
@@ -195,11 +194,6 @@ function DayContent({ day, owner }) {
                     />
                 ))}
             </div>
-            <p className="info-note">
-                <Icon name="info" />
-                Бодрствование считается между снами. Прогноз меняется вместе с вашим днём.
-            </p>
-            <DayContext day={day} readOnly={readOnly} />
             <OrphanedNotes day={day} readOnly={readOnly} />
         </>
     );
