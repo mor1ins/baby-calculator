@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from service.contracts.health import CheckDatabase
 
-SCHEMA_REVISION = "0005_design_features"
+SCHEMA_REVISION = "0006_diary_integrity"
 
 
 class DatabaseReadinessHandler:

@@ -18,7 +18,11 @@ class SettlingRepository:
             "SELECT * FROM settling_attempts WHERE diary_id=:diary AND end_at IS NULL", diary=diary["id"],
         )
         if op.name == "startSettling":
-            if current or any(sleep["end"] is None for sleep in await self.days.sleeps(diary["id"])):
+            active_sleep = await self.days.records.one(
+                "SELECT id FROM sleep_intervals WHERE diary_id=:id AND end_at IS NULL AND deleted_at IS NULL",
+                id=diary["id"],
+            )
+            if current or active_sleep:
                 raise AppError(409, "active_interval", "Сначала завершите текущее укладывание или сон")
             day = date.fromisoformat(op.data["day"])
             if day != op.now.astimezone(ZoneInfo(diary["timezone"])).date():

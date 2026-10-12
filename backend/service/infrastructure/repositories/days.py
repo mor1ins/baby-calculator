@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from datetime import date
 from typing import Any
 from uuid import uuid4
@@ -58,32 +59,33 @@ class DaysRepository:
         await self.assign(row["id"], await self.snapshot(diary["id"], op.data["schedule_id"]))
         return OperationResult(await self.document(diary, day))
 
-    async def sleeps(self, diary_id: Any) -> list[dict[str, Any]]:
+    async def sleeps(self, diary_id: Any, day: date | None = None) -> list[dict[str, Any]]:
         rows = await self.records.rows(
             """SELECT s.id,s.version,d.date AS day,s.day_id,s.kind,s.start_at AS start,s.end_at AS end,s.ends_night
                FROM sleep_intervals s JOIN diary_days d ON d.id=s.day_id
-               WHERE s.diary_id=:id AND s.deleted_at IS NULL ORDER BY s.start_at,s.id""", id=diary_id,
+               WHERE s.diary_id=:id AND s.deleted_at IS NULL
+                 AND (CAST(:day AS date) IS NULL OR d.date=:day OR
+                      (s.ends_night AND d.date < :day AND (s.end_at AT TIME ZONE d.timezone)::date=:day))
+               ORDER BY s.start_at,s.id""", id=diary_id, day=day,
         )
         events = await self.records.rows(
-            """SELECT id,sleep_id,occurred_at FROM sleep_events WHERE diary_id=:id AND deleted_at IS NULL
-               ORDER BY occurred_at,id""", id=diary_id,
+            """SELECT id,sleep_id,occurred_at FROM sleep_events
+               WHERE diary_id=:id AND sleep_id=ANY(CAST(:sleep_ids AS uuid[])) AND deleted_at IS NULL
+               ORDER BY occurred_at,id""", id=diary_id, sleep_ids=[sleep["id"] for sleep in rows],
         )
+        by_sleep: dict[Any, list[dict[str, Any]]] = defaultdict(list)
+        for event in events:
+            by_sleep[event["sleep_id"]].append({"id": event["id"], "occurred_at": event["occurred_at"]})
         for sleep in rows:
-            sleep["events"] = [{"id": event["id"], "occurred_at": event["occurred_at"]}
-                               for event in events if event["sleep_id"] == sleep["id"]]
+            sleep["events"] = by_sleep[sleep["id"]]
         return rows
 
     async def document(self, diary: dict[str, Any], day: date) -> dict[str, Any]:
         row = await self.records.one("SELECT * FROM diary_days WHERE diary_id=:id AND date=:date",
                                      id=diary["id"], date=day)
         zone = row["timezone"] if row else diary["timezone"]
-        sleeps = await self.sleeps(diary["id"])
-        previous_ids = await self.records.rows(
-            """SELECT s.id FROM sleep_intervals s JOIN diary_days d ON d.id=s.day_id
-               WHERE s.diary_id=:id AND s.ends_night AND s.deleted_at IS NULL AND d.date < :date
-                   AND (s.end_at AT TIME ZONE d.timezone)::date=:date""", id=diary["id"], date=day,
-        )
-        previous = [sleep for sleep in sleeps if sleep["id"] in {row["id"] for row in previous_ids}]
+        sleeps = await self.sleeps(diary["id"], day)
+        previous = [sleep for sleep in sleeps if sleep["day"] < day]
         comments = await self.records.rows(
             """SELECT c.id,c.version,c.target_id,c.text FROM interval_comments c JOIN diary_days d ON d.id=c.day_id
                WHERE d.diary_id=:id AND d.date=:date ORDER BY c.created_at,c.id""", id=diary["id"], date=day,
