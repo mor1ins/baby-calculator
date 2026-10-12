@@ -362,21 +362,22 @@ function DayActions({ day, readOnly, edit }) {
         });
     const active = day.sleeps.find((sleep) => !sleep.end);
     if (readOnly) return <p className="notice">График: {day.schedule?.name || 'не выбран'}</p>;
-    if (active?.kind === 'night') return <NightDay day={day} />;
     return (
         <>
-            <ScheduleChoice day={day} />
-
-            {(active || day.date === today(day.timezone)) && (
-                <CurrentInterval day={day} active={active} start={start} />
+            {active?.kind === 'night' ? (
+                <NightDay day={day} />
+            ) : (
+                <>
+                    <ScheduleChoice day={day} />
+                    {(active || day.date === today(day.timezone)) && (
+                        <CurrentInterval day={day} active={active} start={start} />
+                    )}
+                </>
             )}
-
-            {
-                <Button type="button" className="text-button add-past" onClick={() => edit(null)}>
-                    <Icon name="plus" />
-                    Добавить событие
-                </Button>
-            }
+            <Button type="button" className="text-button add-past" onClick={() => edit(null)}>
+                <Icon name="plus" />
+                Добавить событие
+            </Button>
         </>
     );
 }

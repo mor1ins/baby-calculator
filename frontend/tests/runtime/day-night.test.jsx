@@ -104,6 +104,7 @@ it.each(['none', 'resumed', 'awake'])(
             await screen.findByRole('heading', { name: state === 'awake' ? 'Малыш бодрствует' : 'Малыш спит уже' }),
         ).toBeVisible();
         expect(screen.queryByText('Продолжается сон предыдущего дня.')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Добавить событие', exact: true })).toBeVisible();
         await userEvent.click(screen.getByRole('button', { name: 'Проснулся', exact: true }));
         expect(screen.getByLabelText('День цикла')).toHaveValue('2026-10-10');
         const start = screen.getByLabelText(state === 'awake' ? 'Начало ночного бодрствования' : 'Начало сна');

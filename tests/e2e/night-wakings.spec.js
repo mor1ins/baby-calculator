@@ -17,13 +17,19 @@ test('night waking can be entered, timed, edited and shown in the rhythm chart',
         await page.emulateMedia({ colorScheme: theme });
         await page.screenshot({ path: testInfo.outputPath(`night-home-${theme}.png`), fullPage: true });
     }
-    await write('/night-wakings', { day: yesterday, start: `${yesterday}T22:00:00+03:00`, end: `${yesterday}T22:30:00+03:00` });
+    await page.getByRole('button', { name: 'Добавить событие', exact: true }).click();
+    await page.getByLabel('Тип события').selectOption('night_awake');
+    await page.getByLabel('Начало ночного бодрствования', { exact: true }).fill(`${yesterday}T22:00`);
+    await page.getByLabel('Конец ночного бодрствования (пусто — ещё бодрствует)').fill(`${yesterday}T22:30`);
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Ночное бодрствование', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Ночное бодрствование', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Малыш бодрствует' })).toBeVisible();
     await page.reload();
     await expect(page.getByRole('button', { name: 'Снова уснул', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Добавить событие', exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('night-awake-mobile.png'), fullPage: true });
     await page.getByRole('button', { name: 'Снова уснул', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Малыш спит уже' })).toBeVisible();
