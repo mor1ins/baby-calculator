@@ -46,3 +46,10 @@ jobs:
         run: |
           bash -n deploy/demo/release.sh deploy/demo/send-release.sh deploy/demo/verify-image.sh
           python3 -m unittest discover -s deploy/demo -p 'test_*.py'
+      - name: Build and smoke-test the demo container before merge
+        if: github.event_name == 'pull_request'
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          docker build -f deploy/demo/Dockerfile --build-arg REVISION="$REVISION" -t tishe-demo:check .
+          bash deploy/demo/verify-image.sh tishe-demo:check "$REVISION"

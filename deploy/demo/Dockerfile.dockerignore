@@ -14,6 +14,7 @@ design/**
 !design/src/
 design/src/**
 !design/src/mobile-ui.jsx
+!design/src/reportWorkbook.js
 !design/src/mobile.css
 !design/assets/
 design/assets/**
