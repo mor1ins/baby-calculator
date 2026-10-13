@@ -45,3 +45,18 @@ class ReleasePolicyTests(unittest.TestCase):
     def test_rejects_swapped_images(self):
         with self.assertRaises(ValueError):
             verify_source(self.run, self.source, self.release + b'changed', self.repository)
+
+
+class DemoPolicyTest(unittest.TestCase):
+    def test_demo_provenance(self):
+        sha = "a" * 40
+        release = b"DEMO_IMAGE=sha256:test\n"
+        source = {"source_ref": "refs/heads/main", "source_sha": sha,
+                  "release_sha256": hashlib.sha256(release).hexdigest()}
+        run = {"path": ".github/workflows/deploy-demo-dev.yml", "conclusion": "success",
+               "event": "push", "head_branch": "main", "head_sha": sha,
+               "repository": {"full_name": "owner/repo"}}
+        verify_source(run, source, release, "owner/repo", "deploy-demo-dev.yml")
+        source["source_ref"] = "refs/pull/3/head"
+        with self.assertRaises(ValueError):
+            verify_source(run, source, release, "owner/repo", "deploy-demo-dev.yml")

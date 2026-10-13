@@ -80,7 +80,7 @@ function reportBody(rows) {
   return reportMetrics(rows);
 }
 function reportActions() {
-  modal("Действия со статистикой", `<button class="settings-row" data-report="export" aria-label="Скачать CSV">${icon("download")}<span>Скачать CSV<small>Экспорт записей за период</small></span>${icon("arrow")}</button><button class="settings-row" data-report="share" aria-label="Поделиться">${icon("share")}<span>Поделиться<small>Публичный отчёт по ссылке</small></span>${icon("arrow")}</button>`);
+  modal("Действия со статистикой", `<button class="settings-row" data-report="export" aria-label="Скачать Excel">${icon("download")}<span>Скачать Excel<small>Экспорт записей за период</small></span>${icon("arrow")}</button><button class="settings-row" data-report="share" aria-label="Поделиться">${icon("share")}<span>Поделиться<small>Публичный отчёт по ссылке</small></span>${icon("arrow")}</button>`);
 }
 function compactReportPeriod() {
   const format = (date) =>
@@ -107,11 +107,8 @@ function statisticsPage() {
       .join("")}</div></details>`
   );
 }
-function periodSheet(forExport = false) {
-  modal(
-    forExport ? "Экспорт данных" : "Выбрать период",
-    `<form id="report-period" data-export="${forExport}"><p class="subtle">Даты циклов включительно · Europe/Moscow</p><label for="report-from">С</label><input id="report-from" name="from" type="date" required max="2026-10-03" value="${reporting.from}"><label for="report-to">По</label><input id="report-to" name="to" type="date" required max="2026-10-03" value="${reporting.to}">${forExport ? '<p class="info-note">CSV: фактические интервалы сна. Открытый сон — без окончания и длительности. Прогнозы не выгружаются.</p><label class="export-check"><input name="notes" type="checkbox"> Включить заметки</label><p class="form-note">Заметки могут содержать личную информацию. UTF-8 · разделитель «;».</p>' : ""}<p id="report-error" class="error" role="alert"></p><button class="primary" type="submit">${forExport ? "Скачать CSV" : "Применить период"}</button></form>`,
-  );
+function periodSheet() {
+  modal("Выбрать период", `<form id="report-period"><label for="report-from">С</label><input id="report-from" name="from" type="date" required max="2026-10-03" value="${reporting.from}"><label for="report-to">По</label><input id="report-to" name="to" type="date" required max="2026-10-03" value="${reporting.to}"><p id="report-error" class="error" role="alert"></p><button class="primary" type="submit">Применить период</button></form>`);
 }
 function shareSheet() {
   const share = reporting.share;
@@ -137,7 +134,7 @@ function publicReportPage() {
   return (
     '<span class="badge">Публичный отчёт · только просмотр</span>' +
     publicChildCard(share.child) +
-    `<div class="public-export-actions"><button class="outline-button" data-report="public-export">${icon("download")}Скачать CSV</button></div>` +
+    `<div class="public-export-actions"><button class="outline-button" data-report="public-export">${icon("download")}Скачать Excel</button></div>` +
     '<div class="public-report-heading">' +
     head("Ритм сна", reportPeriod(share.from, share.to)) +
     '<p class="subtle public-snapshot">Снимок на 3 октября 2026, 14:20 · Москва</p></div>' +
@@ -145,67 +142,30 @@ function publicReportPage() {
     insightContent(share.rows, share.from, share.to, share.changes)
   );
 }
-function downloadReport(from, to, notes, rows = reportRows(from, to)) {
-  if (!rows.length) return false;
-  const data = [
-    [
-      "cycle_date",
-      "timezone",
-      "type",
-      "start",
-      "end",
-      "duration_minutes",
-      ...(notes ? ["note"] : []),
-    ],
-  ];
-  const add = (day, type, start, end, minutes) =>
-    data.push([
-      day.date,
-      "Europe/Moscow",
-      type,
-      start,
-      end,
-      minutes,
-      ...(notes ? [type === "nap" ? "Пример заметки" : ""] : []),
-    ]);
-  const instant = (date, minutes) =>
-    `${shiftDate(date, Math.floor(minutes / 1440))}T${time(minutes)}:00+03:00`;
-  for (const row of rows) {
-    for (const [start, end] of row.naps)
-      add(
-        row,
-        "nap",
-        instant(row.date, start),
-        instant(row.date, end),
-        end - start,
-      );
-    if (row.nightStart !== null)
-      add(
-        row,
-        "night",
-        instant(row.date, row.nightStart),
-        instant(row.date, 1830),
-        row.night,
-      );
-  }
-  const cell = (value) =>
-    '"' +
-    String(value)
-      .replace(/^[=+\-@\t\r]/, (match) => "'" + match)
-      .replaceAll('"', '""') +
-    '"';
-  const url = URL.createObjectURL(
-    new Blob(
-      ["\ufeff" + data.map((row) => row.map(cell).join(";")).join("\r\n")],
-      { type: "text/csv;charset=utf-8" },
-    ),
-  );
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `tishe-demo-${from}-${to}.csv`;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  return true;
+async function downloadReport(from, to, notes, rows = reportRows(from, to)) {
+  if (!rows.length) { toast("За этот период нет записей для экспорта"); return false; }
+  const instant = (date, minutes) => `${shiftDate(date, Math.floor(minutes / 1440))}T${time(minutes)}:00+03:00`;
+  const export_days = rows.map(row => {
+    const timeline = [];
+    const add = (kind, start, end) => timeline.push({kind, start:instant(row.date,start), end:instant(row.date,end), duration_seconds:(end-start)*60, status:"fact", comment:notes && kind === "nap" ? {text:"Пример заметки"} : null});
+    let cursor = row.morning;
+    for (const [start,end] of row.naps) { add("awake",cursor,start); add("nap",start,end); cursor=end; }
+    if (row.nightStart !== null) {
+      add("awake",cursor,row.nightStart);
+      if (row.settleStart != null) add("settling",row.settleStart,row.nightStart);
+      cursor=row.nightStart;
+      for (const [start,end] of row.nightWakings || []) { add("night",cursor,start); add("night_awake",start,end); cursor=end; }
+      add("night",cursor,1830);
+    }
+    return {date:row.date, timezone:"Europe/Moscow", timeline};
+  });
+  try {
+    const bytes = await window.demoWorkbook({from,to,export_days},notes);
+    const url = URL.createObjectURL(new Blob([bytes], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+    const link=document.createElement("a"); link.href=url; link.download=`tishe-demo-${from}-${to}.xlsx`; link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    return true;
+  } catch { toast("Не удалось подготовить файл. Попробуйте ещё раз"); return false; }
 }
 document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-report]");
@@ -222,8 +182,8 @@ document.addEventListener("click", async (event) => {
     reporting.view = action;
     render();
   }
-  if (action === "period" || action === "export")
-    periodSheet(action === "export");
+  if (action === "period") periodSheet();
+  if (action === "export") { sheet.close(); await downloadReport(reporting.from, reporting.to, true); }
   if (action === "preset") {
     reporting.from = shiftDate("2026-10-03", -Number(button.dataset.days));
     reporting.to = "2026-10-02";
@@ -238,7 +198,7 @@ document.addEventListener("click", async (event) => {
       to: reporting.to,
       child: {name: insights.child.name, age: childAge(), photo: insights.child.photo},
       rows: reportRows().map(
-        ({ date, nap, night, awake, count, complete, morning, nightStart, settleStart, settling, naps, lastWake, settlingHelp, mood }) => ({
+        ({ date, nap, night, awake, count, complete, morning, nightStart, settleStart, settling, naps, lastWake, settlingHelp, mood, nightWakings }) => ({
           date,
           nap,
           night,
@@ -247,6 +207,7 @@ document.addEventListener("click", async (event) => {
           complete,
           morning, nightStart, settleStart, settling, lastWake, settlingHelp, mood,
           naps: naps.map(interval => [...interval]),
+          nightWakings: (nightWakings || []).map(interval => [...interval]),
           context: "",
         }),
       ),
@@ -340,20 +301,11 @@ document.addEventListener("submit", (event) => {
     error.textContent = "Выберите не более 366 дней.";
     return;
   }
-  if (form.dataset.export === "true") {
-    if (!downloadReport(from, to, values.has("notes"))) {
-      error.textContent = "За этот период нет записей для экспорта.";
-      return;
-    }
-    sheet.close();
-    toast("CSV с демонстрационными данными подготовлен");
-  } else {
-    reporting.from = from;
-    reporting.to = to;
-    reporting.view = "ready";
-    sheet.close();
-    render();
-  }
+  reporting.from = from;
+  reporting.to = to;
+  reporting.view = "ready";
+  sheet.close();
+  render();
 });
 function themeControls() {
   const labels = {auto:"Как на устройстве", light:"Светлая", dark:"Тёмная"};

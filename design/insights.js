@@ -26,6 +26,7 @@ for (const [index, row] of reportSamples.entries()) {
   const nightStart = [1250, 1270, 1260, 1230, 1220, 1230, 1230][index];
   const latency = [35, 45, 30, 20, 15, 20, null][index];
   row.morning = 390;
+  row.nightWakings = index === 4 ? [[1620,1665]] : [];
   row.nightStart = row.complete ? nightStart : null;
   row.settleStart = row.complete ? nightStart - latency : null;
   row.settling = latency;
@@ -36,7 +37,7 @@ for (const [index, row] of reportSamples.entries()) {
           [900, 900 + row.nap - 60],
         ]
       : [[650, 730]];
-  row.night = row.complete ? 1830 - nightStart : null;
+  row.night = row.complete ? 1830 - nightStart - row.nightWakings.reduce((sum,[start,end])=>sum+end-start,0) : null;
   row.awake = row.complete ? nightStart - row.morning - row.nap : null;
   row.lastWake = row.complete ? nightStart - row.naps.at(-1)[1] : null;
   row.settlingHelp =
@@ -107,7 +108,6 @@ function insightNavigation() {
   return `<div class="insight-tabs" role="group" aria-label="Разделы статистики">${[
     ["overview", "Обзор"],
     ["rhythm", "Ритм суток"],
-    ["compare", "День → ночь"],
     ["changes", "Изменения"],
   ]
     .map(
@@ -153,19 +153,28 @@ function rhythmPanel(rows, from, to) {
   const selected =
     rows.find((row) => row.date === insightView().selected) || rows.at(-1);
   insightView().selected = selected.date;
-  const bar = (start, end, kind) =>
-    `<i class="rhythm-bar ${kind}" style="left:${(start - 390) / 14.4}%;width:${(end - start) / 14.4}%"></i>`;
-  return `<div class="section-head"><h2>Каждые сутки рядом</h2><span>06:30 → 06:30</span></div><p class="subtle">Выберите строку, чтобы рассмотреть день.</p><section class="card rhythm-card"><div class="rhythm-legend"><span class="nap-dot">Днём</span><span class="night-dot">Ночной интервал</span></div><div class="rhythm-axis"><span>06:30</span><span>12:30</span><span>18:30</span><span>00:30</span><span>06:30</span></div><div class="rhythm-rows">${Array.from(
-    { length: days },
-    (_, i) => {
-      const date = shiftDate(from, i),
-        row = rows.find((item) => item.date === date);
-      return `<button class="rhythm-row" data-insight="select-day" data-date="${date}" ${!row ? "disabled" : ""} aria-pressed="${date === selected.date}" aria-label="Расписание ${shortDate(date)}"><span>${shortDate(date)}</span><span class="rhythm-track">${row ? row.naps.map(([start, end]) => bar(start, end, "nap")).join("") + (row.nightStart !== null ? bar(row.settleStart, row.nightStart, "settling") + bar(row.nightStart, 1830, "night") : "") : "<small>Нет записей</small>"}</span></button>`;
-    },
-  ).join(
-    "",
-  )}</div><p class="form-note">Штриховка — укладывание. Ночь продолжается на следующую дату.</p></section>${dayDetail(selected)}`;
+  // Each row is a calendar date: preceding nights are clipped into the morning.
+  const wakingRanges = date => rows.flatMap(source => (source.nightWakings || []).map(([start,end]) => {
+    const offset=(Date.parse(source.date)-Date.parse(date))/86400000*1440;
+    return [start+offset,end+offset];
+  })).filter(([start,end])=>start<1440 && end>0);
+  const morningPoints=rows.map(row=>row.morning);
+  const eveningPoints=rows.filter(row=>row.nightStart!=null).map(row=>row.nightStart);
+  const wakings=rows.flatMap(row=>wakingRanges(row.date));
+  const left=Math.max(0, Math.floor((Math.min(...morningPoints,...wakings.map(([start])=>Math.max(0,start)))-30)/30)*30);
+  const right=Math.min(1440,Math.ceil((Math.max(...eveningPoints,1080,...wakings.map(([,end])=>Math.min(1440,end)))+30)/30)*30);
+  const clock=minute=>minute===1440 ? "00:00" : time(minute);
+  const bar = (start, end, kind) => {
+    const a=Math.max(left,start,0), b=Math.min(right,end,1440);
+    if(b<=a) return "";
+    return `<i class="rhythm-bar ${kind}" title="${clock(a)}–${clock(b)}" style="left:${(a-left)/(right-left)*100}%;width:${(b-a)/(right-left)*100}%"></i>`;
+  };
+  return `<div class="section-head"><h2>Каждые сутки рядом</h2><span>${clock(left)} → ${clock(right)}</span></div><p class="subtle">Выберите строку, чтобы рассмотреть день.</p><section class="card rhythm-card"><div class="rhythm-legend"><span class="nap-dot">Днём</span><span class="night-dot">Ночной сон</span><span class="settling-dot">Укладывание</span><span class="night-awake-dot">Ночное бодрствование</span></div><div class="rhythm-axis">${Array.from({length:5},(_,i)=>`<span>${clock(Math.round(left+(right-left)*i/4))}</span>`).join("")}</div><div class="rhythm-rows">${Array.from({length:days},(_,i)=>{
+    const date=shiftDate(from,i), row=rows.find(item=>item.date===date);
+    return `<button class="rhythm-row" data-insight="select-day" data-date="${date}" ${!row?"disabled":""} aria-pressed="${date===selected.date}" aria-label="Расписание ${shortDate(date)}"><span>${shortDate(date)}</span><span class="rhythm-track">${row ? bar(0,row.morning,"night")+row.naps.map(([start,end])=>bar(start,end,"nap")).join("")+(row.nightStart!==null ? bar(row.nightStart,1440,"night")+bar(row.settleStart,row.nightStart,"settling") : "")+wakingRanges(date).map(([start,end])=>bar(start,end,"night-awake")).join("") : "<small>Нет записей</small>"}</span></button>`;
+  }).join("")}</div><p class="form-note">Общие ночные участки по краям сокращены. Короткие укладывания увеличены для видимости.</p></section>${dayDetail(selected)}<section class="card calculation-section"><h2>Расчёты</h2>${comparisonDay(selected)}</section>`;
 }
+
 function wakeWindows(row) {
   let previous = row.morning;
   const windows = [];
@@ -217,7 +226,7 @@ function comparisonDay(row) {
     ["Бодрствование перед ночью", row.lastWake === null ? "—" : duration(row.lastWake)],
     ["Укладывание", row.settling === null ? "—" : row.settling + " мин"],
     ["Засыпание на ночь", row.nightStart === null ? "—" : time(row.nightStart)],
-    ["Ночной интервал", row.night === null ? "—" : duration(row.night)],
+    ["Ночной сон", row.night === null ? "—" : duration(row.night)],
   ].map(([label,value])=>`<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl></section>`;
 }
 function comparePanel(rows, from, to) {

@@ -41,6 +41,7 @@ jobs:
           node design/verify.cjs
           node design/verify-start-sleep.cjs
           node design/verify-public-statistics.cjs
+          node design/verify-product-parity.cjs
       - name: Check delivery scripts
         run: |
           bash -n deploy/demo/release.sh deploy/demo/send-release.sh deploy/demo/verify-image.sh

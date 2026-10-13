@@ -24,8 +24,7 @@ const assert = require('node:assert/strict');
     }
    }
    await page.evaluate(()=>{reporting.theme='light';applyReportTheme();navigate('statistics')});
-   await page.getByRole('button',{name:'Действия со статистикой'}).click();
-   await page.getByRole('button',{name:'Скачать CSV',exact:true}).click();
+   await page.getByRole('button',{name:'Свой период',exact:true}).click();
    assert.equal(await page.locator('#sheet [data-konsta="ListInput"]').count(),2);
    assert.equal(await page.getByLabel('С',{exact:true}).getAttribute('type'),'date');
    await page.screenshot({path:path.join(__dirname,`previews/konsta-${platform}-export.png`),fullPage:true});
