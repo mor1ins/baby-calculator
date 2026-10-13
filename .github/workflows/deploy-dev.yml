@@ -82,6 +82,14 @@ jobs:
           FRONTEND_REGISTRATION_ENABLED: "true"
       - run: npm ci && npx playwright install --with-deps chromium && npm test
         working-directory: tests
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-e2e-failure
+          path: |
+            tests/test-results
+            tests/playwright-report
+          retention-days: 7
       - if: always()
         run: docker compose down
   build:

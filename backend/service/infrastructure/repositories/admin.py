@@ -34,7 +34,7 @@ class AdminRepository:
             return None
         try:
             key, old_query, old_limit = json.loads(base64.urlsafe_b64decode(value))
-            if (old_query, old_limit) != (query, limit):
+            if not isinstance(key, str) or (old_query, old_limit) != (query, limit):
                 raise ValueError("Cursor parameters changed")
             return str(UUID(key))
         except (ValueError, TypeError) as exc:

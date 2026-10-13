@@ -48,3 +48,8 @@ class CalculateDays(Command):
     documents: list[dict[str, Any]]
     now: datetime
     summary: bool = False
+
+
+@dataclass(frozen=True)
+class CalculateReport(Command):
+    document: dict[str, Any]

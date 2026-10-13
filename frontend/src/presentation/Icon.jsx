@@ -1,6 +1,16 @@
 import PropTypes from 'prop-types';
 
 const paths = {
+    lock: 'M4 10h16v12H4ZM8 10V6a4 4 0 0 1 8 0v4m-4 5v3',
+    note: 'M21 11a8 8 0 0 1-8 8H6l-4 3V9a7 7 0 0 1 7-7h5m3 0v6m-3-3h6',
+    chart: 'M4 3v18h17M8 16v-4m5 4V7m5 9v-7',
+    download: 'M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5',
+    share: 'M12 16V3m-4 4 4-4 4 4M5 13v8h14v-8',
+    back: 'm15 5-7 7 7 7',
+    copy: 'M8 8h12v13H8ZM16 8V3H3v14h5',
+    info: 'M12 11v6m0-10v1M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
+    logout: 'M9 3H4v18h5m5-5 4-4-4-4m-6 4h13',
+
     sun: 'M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
     moon: 'M20 15.2A8.5 8.5 0 0 1 8.8 4a8.5 8.5 0 1 0 11.2 11.2Z',
     clock: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',

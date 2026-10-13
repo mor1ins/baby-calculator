@@ -54,7 +54,7 @@ class IdentityRepository:
         if context is None:
             raise AppError(401, "unauthenticated", "Войдите в аккаунт")
         if op.name not in {"listDays", "getDay", "listSchedules", "listUsers", "adminListDays",
-                           "adminGetDay", "adminListSchedules"}:
+                           "adminGetDay", "adminListSchedules", "getChild", "getReport", "listShares"}:
             if not secrets.compare_digest(bytes(context["csrf_nonce"]).hex(), op.csrf):
                 raise AppError(403, "csrf_invalid", "Обновите страницу перед сохранением")
         return context

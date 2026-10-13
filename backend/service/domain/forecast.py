@@ -43,7 +43,10 @@ def _night(document: dict[str, Any], current: dict[str, Any], minutes: int,
         return
     elapsed = sum((sleep["end"] - sleep["start"]).total_seconds() for sleep in document["sleeps"]
                   if sleep["kind"] == "night" and sleep["end"] is not None)
-    expected = current["start"] + timedelta(seconds=max(0, minutes * 60 - elapsed))
+    active = next(sleep for sleep in document["sleeps"] if sleep["kind"] == "night" and sleep["end"] is None)
+    awake = sum(max(0, ((waking["end"] or now) - waking["start"]).total_seconds())
+                for sleep in document["sleeps"] for waking in sleep.get("wakings", []))
+    expected = active["start"] + timedelta(seconds=max(0, minutes * 60 - elapsed + awake))
     current["expected_end"] = expected
     if expected < now:
         issues.append("plan_exceeded")

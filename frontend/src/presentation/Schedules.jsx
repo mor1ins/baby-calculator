@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ActionButton, confirmedVersion, ErrorMessage, Form, Loading } from './Forms.jsx';
 import { Icon } from './Icon.jsx';
 import { intervalNames } from './labels.js';
+import { Button, Card } from './Mobile.jsx';
 import { Sheet } from './Sheet.jsx';
 import { duration, today } from './time.js';
 import { useRead, useWrite } from './useApi.js';
@@ -17,7 +18,10 @@ const initialSegments = [
     ['night', 600],
 ].map(([kind, duration_minutes]) => ({ kind, duration_minutes }));
 
-const nameField = [{ name: 'name', label: 'Название графика', required: true, maxLength: 80 }];
+const nameField = [
+    { name: 'name', label: 'Название графика', required: true, maxLength: 80 },
+    { name: 'description', label: 'Описание', maxLength: 500, type: 'textarea' },
+];
 
 function Segments({ value, change }) {
     const edit = (index, minutes) =>
@@ -30,7 +34,7 @@ function Segments({ value, change }) {
         <fieldset>
             <legend>Промежутки, ч:мм</legend>
             {value.map((segment, index) => (
-                <label key={`${segment.kind}-${index}`}>
+                <label className="schedule-field" key={`${segment.kind}-${index}`}>
                     <span>
                         {index + 1}. {intervalNames[segment.kind]}
                     </span>
@@ -83,12 +87,12 @@ function ScheduleEditor({ schedule, current, user, close }) {
         });
         close();
     };
-    const submit = async ({ name, mode }) => {
+    const submit = async ({ name, description, mode }) => {
         const template = await mutation.mutateAsync({
             action: schedule ? 'updateSchedule' : 'createSchedule',
             key: initial.id,
             version: confirmedVersion(initial.version, current?.version),
-            values: { name, segments },
+            values: { name, description, segments },
         });
         setSaved(template);
         if (mode !== 'today') {
@@ -113,7 +117,7 @@ function ScheduleEditor({ schedule, current, user, close }) {
         },
     ];
     return (
-        <Sheet title={schedule ? 'Изменить график' : 'Новый график'} close={close}>
+        <Sheet title={schedule ? 'Настроить график' : 'Новый график'} close={close}>
             {saved ? (
                 <div role="status">
                     <p>График сохранён, но не применён к сегодняшнему дню.</p>
@@ -130,7 +134,11 @@ function ScheduleEditor({ schedule, current, user, close }) {
                     </ActionButton>
                 </div>
             ) : (
-                <Form fields={fields} initial={{ name: initial.name, mode: 'future' }} submit={submit}>
+                <Form
+                    fields={fields}
+                    initial={{ name: initial.name, description: initial.description || '', mode: 'future' }}
+                    submit={submit}
+                >
                     <Segments value={segments} change={setSegments} />
                     <p>Сегодня: {scheduleName(day.data)}. Режим «Начиная с сегодняшнего дня» заменит этот план.</p>
                 </Form>
@@ -153,7 +161,6 @@ export function Schedules({ user, owner }) {
     const [editing, setEditing] = useState(undefined);
     return (
         <Loading query={query}>
-            <p className="muted">График «По умолчанию» автоматически применяется к новым дням.</p>
             {editing !== undefined && (
                 <ScheduleEditor
                     key={editing?.id || 'new'}
@@ -165,25 +172,19 @@ export function Schedules({ user, owner }) {
             )}
             {query.data?.items.length === 0 && <p>Графиков пока нет. Создайте первый план дня.</p>}
             {query.data?.items.map((schedule) => (
-                <section
-                    className={`card schedule-card ${user.default_schedule_id === schedule.id ? 'selected' : ''}`}
-                    key={schedule.id}
-                >
-                    <h2 className="card-heading">
-                        <Icon name="moon" />
-                        {schedule.name} {schedule.archived && '· в архиве'}
-                    </h2>
-                    {user.default_schedule_id === schedule.id && <span className="badge">По умолчанию</span>}
-                    <SchedulePreview segments={schedule.segments} />
-                    <ScheduleSummary segments={schedule.segments} />
+                <PlanCard key={schedule.id} schedule={schedule} selected={user.default_schedule_id === schedule.id}>
                     {!owner && <ScheduleActions schedule={schedule} user={user} edit={() => setEditing(schedule)} />}
-                </section>
+                </PlanCard>
             ))}
             {!owner && (
-                <button className="outline-button" type="button" onClick={() => setEditing(null)}>
-                    <Icon name="plus" /> Новый график
-                </button>
+                <Button className="outline-button" type="button" onClick={() => setEditing(null)}>
+                    <Icon name="plus" /> Создать график
+                </Button>
             )}
+            <p className="info-note">
+                <Icon name="info" />
+                Изменение шаблона не переписывает историю.
+            </p>
         </Loading>
     );
 }
@@ -197,9 +198,9 @@ function ScheduleActions({ schedule, user, edit }) {
         setOpen(false);
     };
     return (
-        <div className="schedule-actions">
+        <div className="card-actions schedule-actions">
             <button type="button" className="schedule-edit" onClick={edit}>
-                Изменить график
+                Настроить график
             </button>
             <button
                 type="button"
@@ -233,6 +234,7 @@ function ScheduleActions({ schedule, user, edit }) {
                                     action: 'createSchedule',
                                     values: {
                                         name: `${schedule.name.slice(0, 70)} — копия`,
+                                        description: schedule.description || '',
                                         segments: schedule.segments,
                                     },
                                 })
@@ -272,7 +274,7 @@ function ScheduleSummary({ segments }) {
     const naps = segments.filter((segment) => segment.kind === 'nap');
     const minutes = (items) => items.reduce((total, item) => total + item.duration_minutes, 0);
     return (
-        <p className="schedule-summary">
+        <p className="form-note">
             Дневных снов: {naps.length} · {duration(minutes(naps) * 60)}
             <br />
             Полный цикл · {duration(minutes(segments) * 60)}
@@ -324,3 +326,56 @@ function SchedulePreview({ segments }) {
     );
 }
 SchedulePreview.propTypes = { segments: PropTypes.array.isRequired };
+
+function PlanTotals({ segments }) {
+    return (
+        <div className="plan-totals">
+            {[
+                ['nap', 'дневного сна'],
+                ['night', 'ночного сна'],
+            ].map(([kind, label]) => (
+                <div key={kind}>
+                    <strong>
+                        {duration(
+                            segments
+                                .filter((part) => part.kind === kind)
+                                .reduce((sum, part) => sum + part.duration_minutes, 0) * 60,
+                        ).replace('мин', 'м')}
+                    </strong>
+                    <span>{label}</span>
+                </div>
+            ))}
+        </div>
+    );
+}
+PlanTotals.propTypes = { segments: PropTypes.array.isRequired };
+
+export function PlanCard({ schedule, selected, children }) {
+    return (
+        <Card className={`plan-card schedule-card ${selected ? 'selected' : ''}`}>
+            <div className="plan-heading">
+                <span className="plan-symbol">
+                    <Icon name="sliders" />
+                </span>
+                <span className="badge">
+                    {schedule.archived ? 'В архиве' : selected ? 'По умолчанию' : 'Личный график'}
+                </span>
+            </div>
+            <h2>{schedule.name}</h2>
+            <p className="subtle">{schedule.description || 'Ориентир для вашего дня'}</p>
+            <PlanTotals segments={schedule.segments} />
+            <SchedulePreview segments={schedule.segments} />
+            <div className="plan-sequence">
+                {schedule.segments.map((part, index) => (
+                    <span key={index}>
+                        <Icon name={part.kind === 'awake' ? 'sun' : 'moon'} />
+                        <strong>{duration(part.duration_minutes * 60).replace('мин', 'м')}</strong>
+                    </span>
+                ))}
+            </div>
+            <ScheduleSummary segments={schedule.segments} />
+            {children}
+        </Card>
+    );
+}
+PlanCard.propTypes = { schedule: PropTypes.object.isRequired, selected: PropTypes.bool, children: PropTypes.node };

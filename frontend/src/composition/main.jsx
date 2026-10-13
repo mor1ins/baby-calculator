@@ -6,6 +6,9 @@ import { App } from '../presentation/App.jsx';
 import { createRuntime } from './container.js';
 import { Providers } from './Providers.jsx';
 
+const platform = /Android/i.test(navigator.userAgent) ? 'material' : 'ios';
+document.documentElement.dataset.platform = platform;
+document.documentElement.classList.add(platform);
 const runtime = createRuntime();
 const stopTheme = await runtime.startTheme(document.documentElement);
 if (import.meta.hot) import.meta.hot.dispose(stopTheme);
@@ -13,7 +16,10 @@ createRoot(document.getElementById('root')).render(
     <StrictMode>
         <Providers runtime={runtime}>
             <BrowserRouter>
-                <App registrationEnabled={globalThis.__BABY_CONFIG__?.registrationEnabled === true} />
+                <App
+                    platform={platform}
+                    registrationEnabled={globalThis.__BABY_CONFIG__?.registrationEnabled === true}
+                />
             </BrowserRouter>
         </Providers>
     </StrictMode>,

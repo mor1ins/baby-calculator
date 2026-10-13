@@ -7,6 +7,7 @@ import { executeAction as actionType, persistAction } from '../contracts/operati
 import { ApiClient } from '../infrastructure/apiClient.js';
 import { actionHandler } from '../infrastructure/executeAction.js';
 import { sessionReader } from '../infrastructure/readSession.js';
+import { BrowserDiaryRepository, browserFiles } from '../infrastructure/repositories/browserDiary.js';
 import { HttpDiaryRepository } from '../infrastructure/repositories/diary.js';
 import { HttpSessionRepository } from '../infrastructure/repositories/session.js';
 import { BrowserThemeRepository } from '../infrastructure/repositories/theme.js';
@@ -21,7 +22,7 @@ export function createRuntime({
 } = {}) {
     const client = new ApiClient(transport);
     const sessionRepository = repository ?? new HttpSessionRepository(client);
-    const diary = diaryRepository ?? new HttpDiaryRepository(client);
+    const diary = diaryRepository ?? new BrowserDiaryRepository(new HttpDiaryRepository(client), browserFiles);
     const bus = new MessageBus({
         ...themeBindings(themeRepository),
         [actionType]: { layer: 'application', handle: executeAction },

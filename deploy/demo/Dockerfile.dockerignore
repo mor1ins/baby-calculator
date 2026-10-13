@@ -10,6 +10,7 @@ design/**
 !design/insights.js
 !design/styles.css
 !design/refinement.css
+!design/components.css
 !design/src/
 design/src/**
 !design/src/mobile-ui.jsx

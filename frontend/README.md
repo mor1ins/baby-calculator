@@ -86,3 +86,16 @@ ESLint 9 помечен npm как неподдерживаемый, но акт
 cd tests
 BABY_E2E_URL=http://127.0.0.1:5173 npm test -- theme.spec.js
 ```
+
+## Общий дизайн с демо
+
+Основное приложение использует Konsta UI 5.5, локальный Manrope и эталонные стили
+`design/styles.css`, `design/refinement.css`, `design/components.css`. Последний файл
+общий для демо и приложения; в `src/presentation/product.css` находятся только
+адаптации рабочих сценариев. Тема сохраняется локально, iOS/Material выбираются
+по платформе браузера.
+
+`npm run dev` и `npm run build` предварительно создают `public/app.css` через Tailwind CLI.
+После изменения CSS во время разработки выполните `npm run styles`.
+Сгенерированный CSS не коммитится. Проверка соответствия макету:
+`cd ../tests && BABY_E2E_URL=http://localhost:8080 npm test -- parity.spec.js`.

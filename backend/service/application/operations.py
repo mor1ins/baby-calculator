@@ -1,5 +1,6 @@
 from service.contracts.messages import MessageBus
-from service.contracts.operations import AppError, CalculateDays, Operation, OperationResult, PersistOperation
+from service.contracts.operations import (AppError, CalculateDays, CalculateReport, Operation, OperationResult,
+                                          PersistOperation)
 
 
 class OperationHandler:
@@ -18,4 +19,6 @@ class OperationHandler:
             documents = result.body if listing else [result.body]
             calculated = await self._bus.send(CalculateDays(documents, message.now, listing))
             result.body = {"items": calculated} if listing else calculated[0]
+        if message.name in {"getReport", "getPublicReport"}:
+            result.body = await self._bus.send(CalculateReport(result.body))
         return result

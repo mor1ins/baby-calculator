@@ -27,3 +27,5 @@ playwright-report/
 test-results/
 
 .import_linter_cache/
+
+frontend/public/app.css

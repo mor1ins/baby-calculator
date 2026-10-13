@@ -1,43 +1,37 @@
+import { useQuery } from '@tanstack/react-query';
+import { KonstaProvider, Tabbar, TabbarLink } from 'konsta/react';
 import PropTypes from 'prop-types';
-import { useEffect, useRef } from 'react';
-import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
+import { themeQueryKey } from '../contracts/theme.js';
 import { AuthPage, Profile } from './Account.jsx';
 import { AdminDiary, AdminUsers } from './Admin.jsx';
 import { DayPage } from './Day.jsx';
 import { History } from './History.jsx';
 import { Icon } from './Icon.jsx';
+import { PageHeading } from './PageHeading.jsx';
 import { Schedules } from './Schedules.jsx';
 import { SessionState } from './SessionState.jsx';
+import { PublicReport, Statistics } from './Statistics.jsx';
 import { useSession } from './useApi.js';
 
 const sections = [
-    { path: '/', title: 'Сегодня', description: 'Сон, бодрствование и спокойный ритм вашего дня.' },
-    { path: '/history', title: 'История', description: 'Дневник, к которому можно вернуться.' },
-    { path: '/schedules', title: 'Мои графики', description: 'Разные планы для обычных и особенных дней.' },
-    { path: '/profile', title: 'Профиль', description: 'Ваш аккаунт и настройки дневника.' },
+    { path: '/', title: 'Сегодня', description: '', icon: 'sun' },
+    { path: '/history', title: 'История', description: 'Каждый день складывается в историю', icon: 'calendar' },
+    { path: '/statistics', title: 'Статистика', description: 'Замечайте ритм, день за днём', icon: 'chart' },
+    { path: '/schedules', title: 'Мои графики', description: 'Ориентиры для вашего дня', icon: 'sliders' },
+    { path: '/profile', title: 'Профиль', description: 'Ваш малыш и ваше пространство', icon: 'user' },
 ];
 
 function Page({ title, description, section, registrationEnabled = false }) {
     const session = useSession();
     const user = session.data?.user;
-    const heading = useRef(null);
-    const location = useLocation();
-    useEffect(() => {
-        document.title = `${title} — Тише`;
-        heading.current?.focus();
-    }, [title, location.pathname]);
     return (
         <>
-            <header className="page-header">
-                <h1 ref={heading} tabIndex={-1}>
-                    {title}
-                </h1>
-                {section !== '/' && <p className="muted">{description}</p>}
-            </header>
-            <section className="session-state" aria-label="Подключение дневника">
-                <SessionState />
-            </section>
+            {!['/', '/statistics', 'login', 'register'].includes(section) && (
+                <PageHeading title={title} description={description} />
+            )}
+            <SessionState hideAnonymous={['login', 'register'].includes(section)} />
             {section === 'login' && <AuthPage registrationEnabled={registrationEnabled} />}
             {section === 'register' && <AuthPage registration registrationEnabled={registrationEnabled} />}
             {user && !user.blocked && !session.isError && <Content section={section} user={user} />}
@@ -46,99 +40,93 @@ function Page({ title, description, section, registrationEnabled = false }) {
 }
 Page.propTypes = {
     title: PropTypes.string.isRequired,
-    description: PropTypes.string.isRequired,
+    description: PropTypes.string,
     section: PropTypes.string,
     registrationEnabled: PropTypes.bool,
 };
 
-export function App({ registrationEnabled = false }) {
+export function App({ registrationEnabled = false, platform = 'ios' }) {
+    const location = useLocation();
+    const theme = useQuery({ queryKey: themeQueryKey, enabled: false });
+    const publicPage = location.pathname.startsWith('/s/');
+    const authPage = ['/login', '/register'].includes(location.pathname);
+    const section = sections.find((item) => item.path === location.pathname);
     return (
-        <div className="app-shell">
-            <a className="skip-link" href="#content">
-                К содержимому
-            </a>
-            <header className="brand">
-                <Link to="/" aria-label="Тише — на главную">
-                    <span className="brand-mark" aria-hidden="true" />{' '}
-                    <span>
-                        тише<span className="brand-period">.</span>
-                    </span>
-                </Link>
-                <Link className="avatar" to="/profile" aria-label="Открыть профиль">
-                    <Icon name="user" />
-                </Link>
-            </header>
-            <main id="content">
-                <Routes>
-                    {sections.map(({ path, ...page }) => (
-                        <Route key={path} path={path} element={<Page {...page} section={path} />} />
-                    ))}
-                    <Route
-                        path="/login"
-                        element={
-                            <Page
-                                section="login"
-                                title="Вход"
-                                description="Вернитесь к своему дневнику."
-                                registrationEnabled={registrationEnabled}
+        <KonstaProvider theme={platform} dark={theme.data?.resolved === 'dark'} autoThemeDetection={false}>
+            <div className="app-shell device">
+                <a className="skip-link" href="#screen">
+                    К содержимому
+                </a>
+                {hasHeader(location.pathname) && <BrandHeader />}
+                <main
+                    id="screen"
+                    data-page={
+                        publicPage ? 'public-report' : location.pathname === '/' ? 'day' : location.pathname.slice(1)
+                    }
+                    tabIndex={-1}
+                >
+                    <Routes>
+                        {sections.map(({ path, title, description }) => (
+                            <Route
+                                key={path}
+                                path={path}
+                                element={<Page title={title} description={description} section={path} />}
                             />
-                        }
-                    />
-                    <Route
-                        path="/register"
-                        element={
-                            registrationEnabled ? (
+                        ))}
+                        <Route
+                            path="/login"
+                            element={
                                 <Page
-                                    section="register"
-                                    title="Регистрация"
-                                    description="Начните историю вашего малыша."
-                                    registrationEnabled
+                                    section="login"
+                                    title="С возвращением"
+                                    description="Ваш дневник ждёт вас"
+                                    registrationEnabled={registrationEnabled}
                                 />
-                            ) : (
-                                <Navigate to="/login" replace />
-                            )
-                        }
-                    />
-                    <Route
-                        path="/admin"
-                        element={<Page section="admin" title="Пользователи" description="Управление доступом." />}
-                    />
-                    <Route
-                        path="/admin/:owner"
-                        element={
-                            <Page section="adminDiary" title="Дневник пользователя" description="Только просмотр." />
-                        }
-                    />
-                    <Route
-                        path="*"
-                        element={
-                            <section className="card">
-                                <h1>Страница не найдена</h1>
-                                <Link to="/">На главную</Link>
-                            </section>
-                        }
-                    />
-                </Routes>
-            </main>
-            <nav aria-label="Основная навигация">
-                {sections.map(({ path, title }) => (
-                    <NavLink aria-label={title} key={path} to={path} end={path === '/'}>
-                        <Icon
-                            name={
-                                { '/': 'sun', '/history': 'calendar', '/schedules': 'sliders', '/profile': 'user' }[
-                                    path
-                                ]
                             }
                         />
-                        <span>{title === 'Мои графики' ? 'Графики' : title}</span>
-                    </NavLink>
-                ))}
-            </nav>
-        </div>
+                        <Route
+                            path="/register"
+                            element={
+                                registrationEnabled ? (
+                                    <Page
+                                        section="register"
+                                        title="Начнём знакомство"
+                                        description="Создайте свой дневник"
+                                        registrationEnabled
+                                    />
+                                ) : (
+                                    <Navigate to="/login" replace />
+                                )
+                            }
+                        />
+                        <Route
+                            path="/admin"
+                            element={<Page section="admin" title="Пользователи" description="Управление доступом" />}
+                        />
+                        <Route
+                            path="/admin/:owner"
+                            element={
+                                <Page section="adminDiary" title="Дневник пользователя" description="Только просмотр" />
+                            }
+                        />
+                        <Route path="/s/:token" element={<PublicReport />} />
+                        <Route
+                            path="*"
+                            element={
+                                <section className="card">
+                                    <h1>Страница не найдена</h1>
+                                    <Link to="/">На главную</Link>
+                                </section>
+                            }
+                        />
+                    </Routes>
+                </main>
+                {!publicPage && !authPage && <Navigation section={section} />}
+            </div>
+        </KonstaProvider>
     );
 }
-
-App.propTypes = { registrationEnabled: PropTypes.bool };
+App.propTypes = { registrationEnabled: PropTypes.bool, platform: PropTypes.string };
 
 function Content({ section, user }) {
     if (section === '/profile') return <Profile user={user} />;
@@ -152,8 +140,53 @@ function Content({ section, user }) {
                 <Link to="/admin">Открыть список пользователей</Link>
             </p>
         );
-    const pages = { '/': DayPage, '/schedules': Schedules, '/history': History };
-    const Component = pages[section];
+    const Component = { '/': DayPage, '/schedules': Schedules, '/history': History, '/statistics': Statistics }[
+        section
+    ];
     return Component ? <Component user={user} /> : null;
 }
 Content.propTypes = { section: PropTypes.string, user: PropTypes.object.isRequired };
+
+function BrandHeader() {
+    const session = useSession();
+    return (
+        <header className="app-header">
+            <Link className="brand" to="/" aria-label="Тише — на главную">
+                <span className="brand-symbol">◔</span> тише<span className="brand-dot">.</span>
+            </Link>
+            <Link className="avatar" to="/profile" aria-label="Открыть профиль">
+                {session.data?.user?.name.slice(0, 1) || <Icon name="user" />}
+            </Link>
+        </header>
+    );
+}
+
+function Navigation({ section }) {
+    return (
+        <nav id="navigation" className="bottom-nav" aria-label="Основная навигация">
+            <Tabbar className="mobile-tabbar" innerClassName="mobile-tabbar-inner" icons labels data-konsta="Tabbar">
+                {sections.map(({ path, title, icon }) => (
+                    <TabbarLink
+                        key={path}
+                        component={Link}
+                        to={path}
+                        active={section?.path === path}
+                        aria-label={title}
+                        aria-current={section?.path === path ? 'page' : undefined}
+                        icon={<Icon name={icon} />}
+                        label={path === '/schedules' ? 'Графики' : title}
+                    />
+                ))}
+            </Tabbar>
+        </nav>
+    );
+}
+Navigation.propTypes = { section: PropTypes.object };
+
+function hasHeader(path) {
+    return (
+        sections.some((item) => item.path === path) ||
+        ['/login', '/register'].includes(path) ||
+        path.startsWith('/admin')
+    );
+}

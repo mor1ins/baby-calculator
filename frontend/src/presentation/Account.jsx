@@ -2,11 +2,13 @@ import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { ChildCard } from './Child.jsx';
 import { ActionButton, confirmedVersion, Form } from './Forms.jsx';
 import { Icon } from './Icon.jsx';
+import { Button, Section, Setting, SettingsList } from './Mobile.jsx';
 import { Sheet } from './Sheet.jsx';
 import { ThemeSelector } from './theme/ThemeSelector.jsx';
-import { useSession, useWrite } from './useApi.js';
+import { useRead, useSession, useWrite } from './useApi.js';
 
 const identityFields = [
     { name: 'email', label: 'Email', type: 'email', required: true, autoComplete: 'email' },
@@ -33,13 +35,16 @@ export function AuthPage({ registration = false, registrationEnabled }) {
     return (
         <section className="auth-form">
             <div className="auth-art">
-                <Icon name="moon" />
+                <span className="auth-moon">
+                    <Icon name="moon" />
+                </span>
+                <span className="kicker">ДНЕВНИК СНА МАЛЫША</span>
                 <p>
-                    Маленькие заметки о сне.
-                    <br />
-                    Больше спокойствия каждый день.
+                    Спокойствие начинается
+                    <br />с понятного ритма.
                 </p>
             </div>
+            <AuthHeading registration={registration} />
             <Form
                 key={String(registration)}
                 fields={fields}
@@ -74,68 +79,120 @@ export function Profile({ user }) {
         setBaseline(result.version);
         setEditing(false);
     };
+    const schedules = useRead({ action: 'schedules' }, { enabled: user.roles.includes('user') });
+    const [panel, setPanel] = useState(null);
     return (
         <section className="profile-page">
-            <div className="profile-hero">
-                <span className="avatar">{user.name.slice(0, 1)}</span>
-                <h2>{user.name}</h2>
-                <p className="muted">{user.email}</p>
-            </div>
-            <div className="card">
-                <ThemeSelector />
-                {user.roles.includes('user') && (
-                    <>
-                        <button type="button" className="settings-row" onClick={() => setEditing(true)}>
-                            <Icon name="user" />
-                            <span>
-                                Личные данные<small>{user.name}</small>
-                            </span>
-                            <Icon name="next" />
-                        </button>
-                        <button type="button" className="settings-row" onClick={() => setEditing(true)}>
-                            <Icon name="clock" />
-                            <span>
-                                Часовой пояс<small>{user.timezone}</small>
-                            </span>
-                            <Icon name="next" />
-                        </button>
-                        {editing && (
-                            <Sheet title="Настройки дневника" close={() => setEditing(false)}>
-                                <Form fields={profileFields} initial={user} submit={save} />
-                            </Sheet>
-                        )}
-                    </>
-                )}
-                {user.default_schedule_id && (
-                    <ActionButton
-                        className="settings-row"
-                        action={() =>
-                            mutation.mutateAsync({
-                                action: 'profile',
-                                version: user.version,
-                                values: { default_schedule_id: null },
-                            })
-                        }
-                    >
-                        Сбросить график по умолчанию
-                    </ActionButton>
-                )}
-                {user.roles.includes('admin') && (
-                    <p>
-                        <Link to="/admin">Пользователи и просмотр дневников</Link>
-                    </p>
-                )}
-                <ActionButton
-                    className="settings-row"
-                    action={async () => {
-                        await mutation.mutateAsync({ action: 'logout' });
-                        navigate('/login');
+            {user.roles.includes('user') && (
+                <>
+                    <Section title="Малыш" />
+                    <ChildCard profile zone={user.timezone} />
+                </>
+            )}
+            <Section title="Родитель" />
+            <div className="account-card">
+                <div className="avatar">{user.name.slice(0, 1)}</div>
+                <div>
+                    <h2>{user.name}</h2>
+                    <p className="subtle">{user.email}</p>
+                </div>
+                <Button
+                    className="icon-button"
+                    aria-label="Изменить личные данные"
+                    onClick={() => {
+                        setPanel('identity');
+                        setEditing(true);
                     }}
                 >
-                    Выйти
-                </ActionButton>
+                    <Icon name="next" />
+                </Button>
             </div>
+            <Section title="Настройки" />
+            <SettingsList>
+                <Setting
+                    title="Тема оформления"
+                    subtitle="Светлая, тёмная или системная"
+                    icon="moon"
+                    onClick={() => setPanel('theme')}
+                />
+                <Setting
+                    title="Часовой пояс"
+                    subtitle={user.timezone}
+                    icon="clock"
+                    onClick={() => {
+                        setPanel('timezone');
+                        setEditing(true);
+                    }}
+                />
+                <Setting
+                    title="Мои графики"
+                    subtitle={`${schedules.data?.items.length || 0} личных графиков`}
+                    icon="sliders"
+                    onClick={() => navigate('/schedules')}
+                />
+                {user.roles.includes('admin') && (
+                    <Setting
+                        title="Пользователи"
+                        subtitle="Просмотр дневников и управление доступом"
+                        icon="user"
+                        onClick={() => navigate('/admin')}
+                    />
+                )}
+            </SettingsList>
+            {editing && (
+                <Sheet title={panel === 'timezone' ? 'Часовой пояс' : 'Личные данные'} close={() => setEditing(false)}>
+                    <Form
+                        fields={profileFields.filter(
+                            (field) => field.name === (panel === 'timezone' ? 'timezone' : 'name'),
+                        )}
+                        initial={user}
+                        submit={save}
+                    />
+                </Sheet>
+            )}
+            {panel === 'theme' && (
+                <Sheet title="Тема оформления" close={() => setPanel(null)}>
+                    <ThemeSelector />
+                </Sheet>
+            )}
+            <ActionButton
+                className="outline-button"
+                action={async () => {
+                    await mutation.mutateAsync({ action: 'logout' });
+                    navigate('/login');
+                }}
+            >
+                <Icon name="logout" />
+                Выйти из аккаунта
+            </ActionButton>
         </section>
     );
 }
 Profile.propTypes = { user: PropTypes.object.isRequired };
+
+function AuthHeading({ registration }) {
+    return (
+        <>
+            {' '}
+            <h1 className="auth-title">
+                {registration ? (
+                    <>
+                        Начнём ваш
+                        <br />
+                        дневник
+                    </>
+                ) : (
+                    <>
+                        Рады видеть
+                        <br />
+                        вас снова
+                    </>
+                )}
+            </h1>
+            <p className="subtle">
+                {registration ? 'Сохраняйте ритм малыша день за днём.' : 'Ваши графики и история уже здесь.'}
+            </p>
+        </>
+    );
+}
+AuthHeading.propTypes = { registration: PropTypes.bool };

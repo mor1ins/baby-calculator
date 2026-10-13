@@ -40,6 +40,9 @@ class SqlOperationRepository:
             return result
 
     async def _execute(self, scope: RepositoryScope, op: Operation) -> OperationResult:
+        if op.name == "getPublicReport":
+            public: OperationResult = await scope.actions[op.name](op, {})
+            return public
         context = await scope.identity.authenticate(op)
         if op.name == "getSession":
             return await scope.identity.session(op, context)

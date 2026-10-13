@@ -26,9 +26,9 @@ test('approved mobile composition, responsive layout and modal keyboard behavior
     }
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: 'test-results/design-today.png', fullPage: true });
-    const trigger = page.getByRole('button', { name: 'Записать сон вручную' });
+    const trigger = page.getByRole('button', { name: 'Добавить событие' });
     await trigger.click();
-    const sheet = page.getByRole('dialog', { name: 'Записать сон' });
+    const sheet = page.getByRole('dialog', { name: 'Добавить событие' });
     await expect(sheet).toBeVisible();
     await page.keyboard.press('Shift+Tab');
     expect(await page.evaluate(() => document.querySelector('dialog').contains(document.activeElement))).toBe(true);

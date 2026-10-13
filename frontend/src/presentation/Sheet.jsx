@@ -1,7 +1,9 @@
 import PropTypes from 'prop-types';
 import { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 import { Icon } from './Icon.jsx';
+import { Button } from './Mobile.jsx';
 
 export function Sheet({ title, close, children }) {
     const dialog = useRef(null);
@@ -15,8 +17,9 @@ export function Sheet({ title, close, children }) {
             trigger?.focus();
         };
     }, []);
-    return (
+    return createPortal(
         <dialog
+            id="sheet"
             ref={dialog}
             className="sheet"
             onKeyDown={trapFocus}
@@ -26,14 +29,17 @@ export function Sheet({ title, close, children }) {
                 close();
             }}
         >
-            <header className="sheet-head">
-                <h2 id={id}>{title}</h2>
-                <button type="button" className="icon-button" aria-label="Закрыть" onClick={close}>
-                    <Icon name="close" />
-                </button>
-            </header>
-            {children}
-        </dialog>
+            <div id="sheet-content">
+                <header className="sheet-head">
+                    <h2 id={id}>{title}</h2>
+                    <Button type="button" className="icon-button" aria-label="Закрыть" onClick={close}>
+                        <Icon name="close" />
+                    </Button>
+                </header>
+                {children}
+            </div>
+        </dialog>,
+        document.body,
     );
 }
 Sheet.propTypes = { title: PropTypes.string.isRequired, close: PropTypes.func.isRequired, children: PropTypes.node };

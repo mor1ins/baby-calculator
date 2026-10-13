@@ -44,7 +44,7 @@ it('retries only applying today after a saved template and day version conflict'
             <Schedules user={user} />
         </Providers>,
     );
-    await userEvent.click(await screen.findByRole('button', { name: 'Изменить график', exact: true }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Настроить график', exact: true }));
     const firstDuration = screen.getByLabelText('Бодрствование 1');
     expect(firstDuration).toHaveValue('13:40');
     await userEvent.clear(firstDuration);

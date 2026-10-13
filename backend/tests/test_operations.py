@@ -11,6 +11,7 @@ from service.settings import Settings
 from service.wiring import specification
 
 DAY_OPERATIONS = {"getDay", "adminGetDay", "setDaySchedule", "listDays", "adminListDays"}
+REPORT_OPERATIONS = {"getReport", "getPublicReport"}
 NAMES = [entry["operationId"] for methods in specification()["paths"].values() for entry in methods.values()]
 
 
@@ -24,6 +25,9 @@ class FakeOperations:
             "date": operation.now.date(), "timezone": "Europe/Moscow", "version": 0,
             "schedule": None, "previous_night": None, "sleeps": [], "targets": [], "comments": [],
         }
+        if operation.name in REPORT_OPERATIONS:
+            return OperationResult({"from": operation.now.date(), "to": operation.now.date(),
+                                    "as_of": operation.now, "documents": [], "changes": []})
         if operation.name in {"listDays", "adminListDays"}:
             return OperationResult([document])
         return OperationResult(document if operation.name in DAY_OPERATIONS else {"operation": operation.name})
@@ -44,7 +48,7 @@ def operation_container(repository: FakeOperations, budget: int) -> Container:
 @pytest.mark.parametrize("name", NAMES)
 async def test_every_operation_obeys_its_exact_budget(name: str) -> None:
     repository = FakeOperations()
-    budget = 3 if name in DAY_OPERATIONS else 2
+    budget = 3 if name in DAY_OPERATIONS | REPORT_OPERATIONS else 2
     command = Operation(name, datetime(2026, 10, 3, tzinfo=timezone.utc))
     result = await operation_container(repository, budget).message_bus().send(command)
     assert result.status == 200

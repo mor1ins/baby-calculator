@@ -68,6 +68,7 @@ it.each([
 it('switches in Profile with keyboard, persists, and follows the OS only in auto mode', async () => {
     const env = environment();
     const view = await mountTheme(env, true);
+    await userEvent.click(await screen.findByRole('button', { name: /Тема оформления/ }));
     const automatic = await screen.findByRole('radio', { name: 'Авто' });
     automatic.focus();
     await userEvent.keyboard('{ArrowRight}{ArrowRight}');

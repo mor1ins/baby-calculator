@@ -2,13 +2,18 @@ import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { ChildCard } from './Child.jsx';
 import { CurrentInterval } from './CurrentInterval.jsx';
+import { NightDay, WelcomeDay } from './DayStates.jsx';
 import { DurationValue } from './DurationValue.jsx';
-import { Form, Loading } from './Forms.jsx';
+import { ActionButton, Loading } from './Forms.jsx';
 import { Icon } from './Icon.jsx';
 import { intervalNames } from './labels.js';
-import { NightEvents } from './NightEvents.jsx';
+import { Button } from './Mobile.jsx';
 import { Note, OrphanedNotes } from './Notes.jsx';
+import { PageHeading } from './PageHeading.jsx';
+import { PlanCard } from './Schedules.jsx';
+import { SettlingForm } from './SettlingForm.jsx';
 import { Sheet } from './Sheet.jsx';
 import { SleepForm } from './SleepForm.jsx';
 import { clockTime, dateShift, duration, today } from './time.js';
@@ -23,7 +28,7 @@ const issues = {
     unassigned_comments: 'Есть заметки, которым нужно выбрать новый интервал.',
 };
 
-export function Metrics({ value }) {
+export function Metrics({ value, schedule }) {
     return (
         <div className="metrics">
             {[
@@ -31,23 +36,33 @@ export function Metrics({ value }) {
                 ['night_sleep_seconds', 'Ночной сон', 'moon'],
                 ['day_awake_seconds', 'Бодрствование', 'clock'],
             ].map(([key, label, icon]) => (
-                <div key={key}>
+                <div className="metric" key={key}>
                     <Icon name={icon} />
                     <strong>
                         <DurationValue seconds={value[key]} />
                     </strong>
-                    <span>{label}</span>
+                    <label>{label}</label>
+                    <p className="subtle">{metricDetail(key, value, schedule)}</p>
                 </div>
             ))}
         </div>
     );
 }
-Metrics.propTypes = { value: PropTypes.object.isRequired };
+Metrics.propTypes = { value: PropTypes.object.isRequired, schedule: PropTypes.object };
 
 function ScheduleChoice({ day }) {
     const [open, setOpen] = useState(false);
     const schedules = useRead({ action: 'schedules' });
     const mutation = useWrite();
+    const apply = async (schedule_id) => {
+        await mutation.mutateAsync({
+            action: 'setSchedule',
+            key: day.date,
+            version: day.version,
+            values: { schedule_id },
+        });
+        setOpen(false);
+    };
     return (
         <>
             <button type="button" className="schedule-strip" onClick={() => setOpen(true)}>
@@ -59,31 +74,18 @@ function ScheduleChoice({ day }) {
             </button>
             {open && (
                 <Sheet title="График дня" close={() => setOpen(false)}>
-                    <Form
-                        key={day.date}
-                        fields={[
-                            {
-                                name: 'schedule_id',
-                                label: 'План этого дня',
-                                options: [
-                                    ['', 'Без графика'],
-                                    ...(schedules.data?.items || [])
-                                        .filter((item) => !item.archived)
-                                        .map((item) => [item.id, item.name]),
-                                ],
-                            },
-                        ]}
-                        initial={{ schedule_id: day.schedule?.source_id || '' }}
-                        submit={async ({ schedule_id }) => {
-                            await mutation.mutateAsync({
-                                action: 'setSchedule',
-                                key: day.date,
-                                version: day.version,
-                                values: { schedule_id: schedule_id || null },
-                            });
-                            setOpen(false);
-                        }}
-                    />
+                    <Loading query={schedules}>
+                        {schedules.data?.items
+                            .filter((item) => !item.archived)
+                            .map((item) => (
+                                <PlanCard key={item.id} schedule={item} selected={day.schedule?.source_id === item.id}>
+                                    <ActionButton action={() => apply(item.id)}>Выбрать этот график</ActionButton>
+                                </PlanCard>
+                            ))}
+                        <ActionButton className="text-button" action={() => apply(null)}>
+                            Без графика
+                        </ActionButton>
+                    </Loading>
                 </Sheet>
             )}
         </>
@@ -92,29 +94,35 @@ function ScheduleChoice({ day }) {
 ScheduleChoice.propTypes = { day: PropTypes.object.isRequired };
 
 function TimelineEntry({ entry, day, edit, readOnly }) {
-    const sleep = day.sleeps.find((item) => item.id === entry.sleep_id);
+    const sleep = editableEntry(entry, day);
     return (
-        <section className={`timeline-entry ${entry.status} ${entry.kind}`}>
+        <section
+            className={`time-row ${entry.kind.replace('_', '-')} ${entry.status === 'forecast' ? 'forecast' : ''} ${entry.kind === 'awake' ? '' : 'sleep'}`}
+        >
             <time className="time-label">{clockTime(entry.start, day.timezone)}</time>
             <div className="time-track" aria-hidden="true">
-                <span />
+                <span className="time-dot" />
             </div>
             <div className="interval">
                 <div className="interval-top">
-                    <h3>{intervalNames[entry.kind]}</h3>
-                    <strong>{duration(entry.duration_seconds)}</strong>
+                    <h3>
+                        {intervalNames[entry.kind]}
+                        {['nap', 'awake'].includes(entry.kind) &&
+                            ` ${day.timeline.filter((item) => item.kind === entry.kind).indexOf(entry) + 1}`}
+                        {entry.status === 'ongoing' && <span className="now-tag">сейчас</span>}
+                    </h3>
+                    <span className="duration">{duration(entry.duration_seconds).replace('мин', 'м')}</span>
                 </div>
                 <p className="muted interval-range">
                     {clockTime(entry.start, day.timezone)} — {entry.end ? clockTime(entry.end, day.timezone) : 'сейчас'}
-                    <IntervalStatus status={entry.status} />
+                    {entry.status === 'forecast' && ' · прогноз'}
                 </p>
                 {entry.status !== 'forecast' && (
                     <>
-                        {!readOnly && <IntervalControls entry={entry} day={day} edit={edit} sleep={sleep} />}
-                        <Note interval={entry} readOnly={readOnly} />
-                        {sleep?.kind === 'night' && (sleep.end || readOnly) && (
-                            <NightEvents sleep={sleep} zone={day.timezone} readOnly={readOnly} />
+                        {!['night_awake', 'settling'].includes(entry.kind) && (
+                            <Note interval={entry} readOnly={readOnly} />
                         )}
+                        {!readOnly && <IntervalControls entry={entry} day={day} edit={edit} sleep={sleep} />}
                     </>
                 )}
             </div>
@@ -131,14 +139,15 @@ TimelineEntry.propTypes = {
 function DayContent({ day, owner }) {
     const readOnly = Boolean(owner);
     const [editing, setEditing] = useState(undefined);
+    if (!readOnly && !day.previous_night && !day.sleeps.length) return <WelcomeDay day={day} />;
     return (
         <>
             <DayActions day={day} readOnly={readOnly} edit={setEditing} />
             <div className="section-head">
-                <h2>День в цифрах</h2>
+                <h2>Уже сегодня</h2>
                 <span>На {clockTime(day.as_of, day.timezone)}</span>
             </div>
-            <Metrics value={day.metrics} />
+            <Metrics value={day.metrics} schedule={day.schedule} />
             {day.issues
                 .filter((issue) => issue !== 'missing_night_end')
                 .map((issue) => (
@@ -146,17 +155,30 @@ function DayContent({ day, owner }) {
                         {issues[issue]}
                     </p>
                 ))}
-            {editing !== undefined && (
-                <SleepForm
-                    key={`${editing?.id || 'new'}-${day.date}`}
-                    sleep={editing}
-                    day={day}
-                    close={() => setEditing(undefined)}
-                />
+            {editing?.kind === 'settling' ? (
+                <SettlingForm attempt={editing} day={day} close={() => setEditing(undefined)} />
+            ) : (
+                editing !== undefined && (
+                    <SleepForm
+                        key={`${editing?.id || 'new'}-${day.date}`}
+                        sleep={editing}
+                        day={day}
+                        close={() => setEditing(undefined)}
+                    />
+                )
             )}
             <div className="section-head">
-                <h2>Линия дня</h2>
-                <span>Факт и прогноз</span>
+                <h2>Лента дня</h2>
+                <div className="legend">
+                    <span>
+                        <i />
+                        Факт
+                    </span>
+                    <span>
+                        <i className="future" />
+                        Прогноз
+                    </span>
+                </div>
             </div>
             <div className="timeline">
                 {day.previous_night && (
@@ -164,7 +186,7 @@ function DayContent({ day, owner }) {
                 )}
                 {day.timeline.map((entry, index) => (
                     <TimelineEntry
-                        key={entry.id || `forecast-${index}`}
+                        key={`${entry.id || 'forecast'}-${index}`}
                         entry={entry}
                         day={day}
                         edit={setEditing}
@@ -178,43 +200,45 @@ function DayContent({ day, owner }) {
 }
 DayContent.propTypes = { day: PropTypes.object.isRequired, owner: PropTypes.string };
 
-function CompletedNight({ day, owner, edit }) {
-    const previous = useRead(
-        { action: owner ? 'adminDay' : 'day', key: day.previous_night.day, parent: owner },
-        { refetchInterval: 60000 },
-    );
-    const entry = previous.data?.timeline.find((item) => item.sleep_id === day.previous_night.id);
+function CompletedNight({ day }) {
+    const night = day.previous_night;
     return (
-        <Loading query={previous}>
-            {entry && <TimelineEntry entry={entry} day={previous.data} edit={edit} readOnly={Boolean(owner)} />}
-        </Loading>
+        <div className="previous-night-context">
+            <span className="kicker">ПРЕДЫДУЩАЯ НОЧЬ · {night.day}</span>
+            <p>
+                {clockTime(night.start, day.timezone)} — {clockTime(night.end, day.timezone)} ·{' '}
+                {duration(night.duration_seconds ?? (Date.parse(night.end) - Date.parse(night.start)) / 1000)}
+            </p>
+            <p className="subtle">Завершение этой ночи задаёт начало дня. В сегодняшние итоги не входит.</p>
+        </div>
     );
 }
-CompletedNight.propTypes = { ...DayContent.propTypes, edit: PropTypes.func.isRequired };
+CompletedNight.propTypes = { day: PropTypes.object.isRequired };
 
 export function DayPage({ user, owner }) {
     const [params, setParams] = useSearchParams();
     const date = params.get('date') || today(user.timezone);
     const setDate = (value) => setParams({ date: value });
     const [calendar, setCalendar] = useState(false);
-    const query = useRead({ action: owner ? 'adminDay' : 'day', key: date, parent: owner }, { refetchInterval: 60000 });
+    const query = useDisplayedDay(date, user.timezone, owner);
+    const displayedDate = query.data?.date || date;
     return (
         <>
-            <div className="day-date">
-                <p>
-                    {new Intl.DateTimeFormat('ru', { weekday: 'long', day: 'numeric', month: 'long' }).format(
-                        new Date(`${date}T12:00:00`),
-                    )}
-                </p>
-                <button
-                    type="button"
-                    className="icon-button"
-                    aria-label="Выбрать дату"
-                    onClick={() => setCalendar(true)}
-                >
+            <PageHeading
+                title={dayTitle(query.data, displayedDate, user.timezone)}
+                description={new Intl.DateTimeFormat('ru', { weekday: 'long', day: 'numeric', month: 'long' }).format(
+                    new Date(`${displayedDate}T12:00:00`),
+                )}
+            >
+                <Button className="icon-button" aria-label="Выбрать дату" onClick={() => setCalendar(true)}>
                     <Icon name="calendar" />
-                </button>
-            </div>
+                </Button>
+            </PageHeading>
+            {!owner &&
+                query.data?.previous_night &&
+                !query.data.sleeps.some((item) => item.kind === 'night' && !item.end) && (
+                    <ChildCard zone={user.timezone} />
+                )}
             {calendar && (
                 <Sheet title="День дневника" close={() => setCalendar(false)}>
                     <label>
@@ -233,8 +257,9 @@ export function DayPage({ user, owner }) {
                     </label>
                 </Sheet>
             )}
-            {!owner && <PreviousNight user={user} select={setDate} />}
-            <Loading query={query}>{query.data && <DayContent key={date} day={query.data} owner={owner} />}</Loading>
+            <Loading query={query}>
+                {query.data && <DayContent key={displayedDate} day={query.data} owner={owner} />}
+            </Loading>
         </>
     );
 }
@@ -264,7 +289,8 @@ function WakeBoundaries({ entry, day, edit }) {
     if (!left && !right) return null;
     return (
         <>
-            <button type="button" onClick={() => setOpen(true)}>
+            <button className="interval-edit" type="button" onClick={() => setOpen(true)}>
+                <Icon name="sliders" />
                 Исправить границы
             </button>
             {open && (
@@ -296,26 +322,27 @@ WakeBoundaries.propTypes = {
     edit: PropTypes.func.isRequired,
 };
 
-function PreviousNight({ user, select }) {
-    const yesterday = dateShift(today(user.timezone), -1);
-    const previous = useRead({ action: 'day', key: yesterday }, { refetchInterval: 60000 });
-    const active = previous.data?.sleeps.find((sleep) => !sleep.end);
-    if (!active) return null;
-    return (
-        <section className="card ongoing">
-            <p>Продолжается сон предыдущего дня.</p>
-            <button type="button" onClick={() => select(yesterday)}>
-                Открыть текущий сон
-            </button>
-        </section>
-    );
+function activeSleep(day) {
+    return day?.sleeps.find((sleep) => !sleep.end);
 }
-PreviousNight.propTypes = { user: PropTypes.object.isRequired, select: PropTypes.func.isRequired };
+
+function useDisplayedDay(date, zone, owner) {
+    const query = useRead({ action: owner ? 'adminDay' : 'day', key: date, parent: owner }, { refetchInterval: 60000 });
+    const checkPrevious = !owner && date === today(zone) && !activeSleep(query.data);
+    const previous = useRead(
+        { action: 'day', key: dateShift(date, -1) },
+        { enabled: checkPrevious, refetchInterval: 60000 },
+    );
+    if (!checkPrevious || query.isPending || query.isError) return query;
+    if (previous.isPending || previous.isError || activeSleep(previous.data)) return previous;
+    return query;
+}
 
 function SleepControls({ sleep, edit }) {
     return (
-        <button type="button" onClick={() => edit(sleep)}>
-            {sleep.end ? 'Исправить сон' : 'Завершить / исправить'}
+        <button className="interval-edit" type="button" onClick={() => edit(sleep)}>
+            <Icon name="sliders" />
+            {sleep.end ? 'Изменить интервал' : 'Завершить / исправить'}
         </button>
     );
 }
@@ -323,13 +350,13 @@ SleepControls.propTypes = { sleep: PropTypes.object.isRequired, edit: PropTypes.
 
 function DayActions({ day, readOnly, edit }) {
     const mutation = useWrite();
-    const start = (kind) =>
+    const start = (kind, minutes = 0) =>
         mutation.mutateAsync({
             action: 'createSleep',
             values: {
                 day: day.date,
                 kind,
-                start: new Date().toISOString(),
+                start: new Date(Date.now() - minutes * 60000).toISOString(),
                 end: null,
             },
         });
@@ -337,25 +364,50 @@ function DayActions({ day, readOnly, edit }) {
     if (readOnly) return <p className="notice">График: {day.schedule?.name || 'не выбран'}</p>;
     return (
         <>
-            <ScheduleChoice day={day} />
-
-            {(active || day.date === today(day.timezone)) && (
-                <CurrentInterval day={day} active={active} start={start} />
+            {active?.kind === 'night' ? (
+                <NightDay day={day} />
+            ) : (
+                <>
+                    <ScheduleChoice day={day} />
+                    {(active || day.date === today(day.timezone)) && (
+                        <CurrentInterval day={day} active={active} start={start} />
+                    )}
+                </>
             )}
-            {active?.kind === 'night' && <NightEvents sleep={active} zone={day.timezone} />}
-            {
-                <button type="button" className="text-button add-past" onClick={() => edit(null)}>
-                    <Icon name="plus" />
-                    Записать сон вручную
-                </button>
-            }
+            <Button type="button" className="text-button add-past" onClick={() => edit(null)}>
+                <Icon name="plus" />
+                Добавить событие
+            </Button>
         </>
     );
 }
 DayActions.propTypes = { day: PropTypes.object.isRequired, readOnly: PropTypes.bool, edit: PropTypes.func.isRequired };
 
-function IntervalStatus({ status }) {
-    if (status === 'actual') return null;
-    return <span className="status-tag">{status === 'forecast' ? 'прогноз' : 'сейчас'}</span>;
+function dayTitle(day, date, zone) {
+    if (day?.sleeps.some((item) => item.kind === 'night' && !item.end)) return 'Ночной сон';
+    if (day && !day.previous_night && !day.sleeps.length) return 'Новый день';
+    return date === today(zone) ? 'Сегодня' : 'День дневника';
 }
-IntervalStatus.propTypes = { status: PropTypes.string.isRequired };
+
+function metricDetail(key, value, schedule) {
+    if (key === 'night_sleep_seconds') return value[key] === null ? 'ещё впереди' : 'по записям';
+    if (key === 'day_sleep_seconds' && schedule)
+        return (
+            'из ' +
+            duration(
+                schedule.segments
+                    .filter((part) => part.kind === 'nap')
+                    .reduce((sum, part) => sum + part.duration_minutes, 0) * 60,
+            ).replace('мин', 'м')
+        );
+    return 'с текущим периодом';
+}
+
+function editableEntry(entry, day) {
+    const parent = day.sleeps.find((item) => item.id === entry.sleep_id);
+    return entry.kind === 'night_awake'
+        ? { ...parent?.wakings?.find((item) => item.id === entry.id), day: parent?.day, kind: 'night_awake' }
+        : entry.kind === 'settling'
+          ? { ...day.settling.find((item) => item.id === entry.id), end: entry.end, kind: 'settling' }
+          : parent;
+}
