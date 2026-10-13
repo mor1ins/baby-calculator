@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       dev_run_id:
-        description: 'Successful Deploy dev run ID; promotes the same image digests'
+        description: 'Successful main-only Deploy dev run ID; PR releases are rejected'
         required: true
         type: string
 permissions:
@@ -27,16 +27,25 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ inputs.dev_run_id }}
         run: |
+          test "$GITHUB_REF" = refs/heads/main
           [[ "$RUN_ID" =~ ^[0-9]+$ ]]
           metadata=$(gh api "repos/$REPOSITORY/actions/runs/$RUN_ID")
           test "$(jq -r .path <<< "$metadata")" = .github/workflows/deploy-dev.yml
           test "$(jq -r .conclusion <<< "$metadata")" = success
           test "$(jq -r .head_branch <<< "$metadata")" = main
+          printf '%s\n' "$metadata" > source-run.json
       - uses: actions/download-artifact@v4
         with:
+          path: verified-release
           name: dev-verified-release
           run-id: ${{ inputs.dev_run_id }}
           github-token: ${{ github.token }}
+      - name: Enforce main-only application source
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 deploy/verify_prod_source.py source-run.json verified-release "$REPOSITORY"
+          cp verified-release/release.env release.env
       - name: Promote immutable images
         run: bash deploy/send-release.sh
         env:

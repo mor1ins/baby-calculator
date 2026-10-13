@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.ref.outputs.sha }}
+      source_ref: ${{ steps.ref.outputs.source_ref }}
     steps:
       - id: ref
         env:
@@ -27,7 +28,6 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           PR: ${{ inputs.pr_number }}
           PUSH_SHA: ${{ github.sha }}
-          EVENT: ${{ github.event_name }}
         shell: bash
         run: |
           test "$GITHUB_REF" = refs/heads/main
@@ -37,13 +37,14 @@ jobs:
             test "$(jq -r .head.repo.full_name <<< "$metadata")" = "$REPOSITORY"
             test "$(jq -r .state <<< "$metadata")" = open
             sha=$(jq -r .head.sha <<< "$metadata")
-          elif [[ "$EVENT" = push ]]; then
-            sha=$PUSH_SHA
+            source_ref="refs/pull/$PR/head"
           else
-            sha=$(gh api "repos/$REPOSITORY/commits/main" --jq .sha)
+            sha=$PUSH_SHA
+            source_ref=refs/heads/main
           fi
           [[ "$sha" =~ ^[a-f0-9]{40}$ ]]
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "source_ref=$source_ref" >> "$GITHUB_OUTPUT"
   verify:
     needs: resolve
     runs-on: ubuntu-latest
@@ -69,6 +70,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - run: python3 -m unittest discover -s deploy -p 'test_release_policy.py' -v
       - run: python -m pip install uv==0.9.26
       - run: make -C backend setup check test-integration
         env:
@@ -142,10 +144,15 @@ jobs:
       - name: Write immutable release manifest
         env:
           REPOSITORY: ${{ needs.build.outputs.repository }}
+          SOURCE_REF: ${{ needs.resolve.outputs.source_ref }}
+          SOURCE_SHA: ${{ needs.resolve.outputs.sha }}
           BACKEND: ${{ needs.build.outputs.backend }}
           FRONTEND: ${{ needs.build.outputs.frontend }}
         run: |
           printf 'BACKEND_IMAGE=ghcr.io/%s/backend@%s\nFRONTEND_IMAGE=ghcr.io/%s/frontend@%s\n' "$REPOSITORY" "$BACKEND" "$REPOSITORY" "$FRONTEND" > release.env
+          release_hash=$(sha256sum release.env | cut -d ' ' -f 1)
+          jq -n --arg ref "$SOURCE_REF" --arg sha "$SOURCE_SHA" --arg hash "$release_hash" \
+            '{source_ref: $ref, source_sha: $sha, release_sha256: $hash}' > release-source.json
       - name: Deploy over verified SSH
         run: bash deploy/send-release.sh
         env:
@@ -159,5 +166,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dev-verified-release
-          path: release.env
+          path: |
+            release.env
+            release-source.json
           retention-days: 30
