@@ -1,3 +1,5 @@
+import { reportWorkbook } from './reportWorkbook.js';
+window.demoWorkbook = reportWorkbook;
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';

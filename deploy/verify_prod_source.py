@@ -6,11 +6,11 @@ import sys
 from pathlib import Path
 
 
-def verify_source(run, source, release, repository):
+def verify_source(run, source, release, repository, workflow="deploy-dev.yml"):
     """Bind the image manifest to a successful dev build of the run's main commit."""
     if not isinstance(run, dict) or not isinstance(source, dict):
         raise ValueError('Missing release provenance')
-    if (run.get('path') != '.github/workflows/deploy-dev.yml'
+    if (run.get('path') != f'.github/workflows/{workflow}'
             or run.get('conclusion') != 'success'
             or run.get('event') not in ('push', 'workflow_dispatch')
             or run.get('head_branch') != 'main'
@@ -29,5 +29,6 @@ if __name__ == '__main__':
     metadata = json.loads(Path(sys.argv[1]).read_text())
     directory = Path(sys.argv[2])
     provenance = json.loads((directory / 'release-source.json').read_text())
-    verify_source(metadata, provenance, (directory / 'release.env').read_bytes(), sys.argv[3])
+    verify_source(metadata, provenance, (directory / 'release.env').read_bytes(), sys.argv[3],
+                  sys.argv[4] if len(sys.argv) > 4 else "deploy-dev.yml")
     print('Verified: production release was built from main')

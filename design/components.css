@@ -148,3 +148,21 @@
   .mobile-tabbar :is(button,a) span { font-size:11px; }
   .insight-highlights article { padding:12px; }
 }
+
+/* Product parity: full-width selection and distinct event colors. */
+:root { --chart-settling: #ed7315; --chart-night-awake: #51cdb8; }
+.rhythm-rows { margin-inline: -12px; }
+.rhythm-row { padding-inline: 12px; border-radius: 0; }
+.rhythm-bar { top: 0; height: 100%; border-radius: 0; }
+.rhythm-bar.settling, .settling-dot::before { background: var(--chart-settling); }
+.rhythm-bar.settling { min-width: 4px; }
+.rhythm-bar.night-awake, .night-awake-dot::before { background: var(--chart-night-awake); }
+.calculation-section { margin-top: 20px; }
+.night-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.night-actions > button { flex: 1 1 140px; min-height: 44px; }
+.event-timeline { margin-top: 24px; }
+.event-timeline .interval-edit { min-height: 44px; }
+
+.rhythm-card { padding-inline: 12px; }
+
+.night-actions > button { margin: 0; height: auto; min-height: 52px; align-self: stretch; }

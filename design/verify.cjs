@@ -40,7 +40,7 @@ const path = require("node:path");
     await page.evaluate(() => navigate("statistics"));
     for (const width of [320, 360, 375, 390, 430, 768, 1440]) {
       await page.setViewportSize({ width, height: 844 });
-      for (const label of ["Ритм суток", "День → ночь", "Изменения", "Обзор"]) {
+      for (const label of ["Ритм суток", "Изменения", "Обзор"]) {
         await page.getByRole("button", { name: label, exact: true }).click();
         assert.equal(
           await page.evaluate(
@@ -54,7 +54,6 @@ const path = require("node:path");
     await page.setViewportSize({ width: 390, height: 844 });
     for (const [label, file] of [
       ["Ритм суток", "20-daily-rhythm"],
-      ["День → ночь", "21-day-night"],
       ["Изменения", "22-changes"],
     ]) {
       await page.getByRole("button", { name: label, exact: true }).click();
@@ -72,7 +71,7 @@ const path = require("node:path");
       .getByRole("heading", { name: "26.09", exact: true })
       .waitFor();
     assert.equal(await page.locator("#screen .child-card").count(),0);
-    for (const label of ["Обзор", "Ритм суток", "День → ночь", "Изменения"]) {
+    for (const label of ["Обзор", "Ритм суток", "Изменения"]) {
       await page.getByRole("button", {name:label, exact:true}).click();
       assert.equal(await page.locator('#screen [data-insight]:not([data-insight="tab"]):not([data-insight="select-day"]):not([data-insight="compare-date"]):not([data-insight="compare-month"])').count(),0);
       assert.equal(await page.locator('#screen form').count(),0);
@@ -138,6 +137,7 @@ const path = require("node:path");
     assert.equal(await page.locator(".child-card img").count(), 0);
     await page.evaluate(() => {
       insights.tab = "overview";
+      reporting.from="2026-09-26";reporting.to="2026-10-02";
       navigate("statistics");
     });
     await page.locator("#toast.visible").waitFor({ state: "hidden" });
@@ -170,24 +170,14 @@ const path = require("node:path");
       .getByRole("button", { name: "Последняя неделя", exact: true })
       .click();
     await openReportActions();
-    await page
-      .getByRole("button", { name: "Скачать CSV", exact: true })
-      .click();
-    await page.screenshot({
-      path: path.join(__dirname, "previews/15-export.png"),
-    });
-    const downloadPromise = page.waitForEvent("download");
-    await page
-      .locator("#report-period")
-      .getByRole("button", { name: "Скачать CSV", exact: true })
-      .click();
-    const download = await downloadPromise;
-    const csv = await readFile(await download.path(), "utf8");
-    assert.match(download.suggestedFilename(), /2026-09-26-2026-10-02/);
-    assert.match(csv, /2026-09-26/);
-    assert.doesNotMatch(csv, /night_event/);
-    assert.doesNotMatch(csv, /"2026-10-03"/);
-    assert.doesNotMatch(csv, /"note"/);
+    const downloadPromise=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Скачать Excel",exact:true}).click();
+    const download=await downloadPromise;
+    assert.match(download.suggestedFilename(), /2026-09-26-2026-10-02.xlsx/);
+    const workbook=new (require('../tests/node_modules/exceljs').Workbook)();
+    await workbook.xlsx.readFile(await download.path());
+    assert.match(JSON.stringify(workbook.worksheets[0].getSheetValues()), /Пример заметки/);
+    assert.equal(await page.locator('#sheet').isVisible(),false);
     await openReportActions();
     await page.getByRole("button", { name: "Поделиться", exact: true }).click();
     await page.screenshot({
@@ -265,39 +255,15 @@ const path = require("node:path");
       .click();
     await page.keyboard.press("Escape");
     assert.equal(await page.locator("#sheet").isVisible(), false);
+    await page.evaluate(()=>{reporting.from="2026-09-29";reporting.to="2026-09-29";render()});
     await openReportActions();
-    await page
-      .getByRole("button", { name: "Скачать CSV", exact: true })
-      .click();
-    await page.getByRole("checkbox", { name: "Включить заметки" }).check();
-    const notesDownload = page.waitForEvent("download");
-    await page
-      .locator("#report-period")
-      .getByRole("button", { name: "Скачать CSV", exact: true })
-      .click();
-    assert.match(
-      await readFile(await (await notesDownload).path(), "utf8"),
-      /"note"/,
-    );
-    await openReportActions();
-    await page
-      .getByRole("button", { name: "Скачать CSV", exact: true })
-      .click();
-    await page.locator("#report-from").fill("2026-09-29");
-    await page.locator("#report-to").fill("2026-09-29");
-    await page
-      .locator("#report-period")
-      .getByRole("button", { name: "Скачать CSV", exact: true })
-      .click();
-    assert.match(
-      await page.locator("#report-error").innerText(),
-      /нет записей/,
-    );
-    await page.keyboard.press("Escape");
+    await page.getByRole("button",{name:"Скачать Excel",exact:true}).click();
+    assert.match(await page.locator("#toast").innerText(),/нет записей/);
     await page.evaluate(() => {
       reporting.theme = "light";
       applyReportTheme();
       insights.tab = "overview";
+      reporting.from="2026-09-26";reporting.to="2026-10-02";
       navigate("statistics");
     });
     await page.locator("#toast.visible").waitFor({ state: "hidden" });
@@ -311,7 +277,7 @@ const path = require("node:path");
     });
     await page.evaluate(() => navigate("statistics"));
     await page
-      .getByRole("button", { name: "День → ночь", exact: true })
+      .getByRole("button", { name: "Ритм суток", exact: true })
       .click();
     await page.locator(".compare-day").last().locator("dl").waitFor();
     await page.getByRole("button", { name: "Обзор", exact: true }).click();
@@ -338,7 +304,7 @@ const path = require("node:path");
       content: ":root {font-size:32px !important;}",
     });
     assert.equal(await page.locator("#screen .child-card").count(),0);
-    for (const label of ["Обзор", "Ритм суток", "День → ночь", "Изменения"]) {
+    for (const label of ["Обзор", "Ритм суток", "Изменения"]) {
       await page.getByRole("button", { name: label, exact: true }).click();
       assert.equal(
         await page.evaluate(
@@ -357,7 +323,7 @@ const path = require("node:path");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Passed: responsive layout, range validation, incomplete cycles, CSV content, public snapshot, revocation, states, themes; twelve previews saved; child profile, photo upload/removal, rhythm and read-only statistics verified.",
+      "Passed: responsive layout, range validation, incomplete cycles, Excel content, public snapshot, revocation, states, themes; twelve previews saved; child profile, photo upload/removal, rhythm and read-only statistics verified.",
     );
   } finally {
     await browser.close();

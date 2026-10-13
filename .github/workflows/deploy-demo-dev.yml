@@ -27,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.ref.outputs.sha }}
+      source_ref: ${{ steps.ref.outputs.source_ref }}
     steps:
       - id: ref
         env:
@@ -44,13 +45,14 @@ jobs:
             test "$(jq -r .head.repo.full_name <<< "$metadata")" = "$REPOSITORY"
             test "$(jq -r .state <<< "$metadata")" = open
             sha=$(jq -r .head.sha <<< "$metadata")
-          elif [[ "$EVENT" = push ]]; then
-            sha=$PUSH_SHA
+            source_ref="refs/pull/$PR/head"
           else
-            sha=$(gh api "repos/$REPOSITORY/commits/main" --jq .sha)
+            sha=$PUSH_SHA
+            source_ref=refs/heads/main
           fi
           [[ "$sha" =~ ^[a-f0-9]{40}$ ]]
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "source_ref=$source_ref" >> "$GITHUB_OUTPUT"
   verify:
     needs: resolve
     uses: ./.github/workflows/demo-checks.yml
@@ -111,7 +113,10 @@ jobs:
           REPOSITORY: ${{ needs.build.outputs.repository }}
           DIGEST: ${{ needs.build.outputs.image }}
           REVISION: ${{ needs.resolve.outputs.sha }}
-        run: printf 'DEMO_IMAGE=%s@%s\nDEMO_REVISION=%s\n' "$REPOSITORY" "$DIGEST" "$REVISION" > release.env
+          SOURCE_REF: ${{ needs.resolve.outputs.source_ref }}
+        run: |
+          printf 'DEMO_IMAGE=%s@%s\nDEMO_REVISION=%s\n' "$REPOSITORY" "$DIGEST" "$REVISION" > release.env
+          jq -n --arg source_ref "$SOURCE_REF" --arg source_sha "$REVISION" --arg release_sha256 "$(sha256sum release.env | cut -d ' ' -f1)" '{source_ref:$source_ref,source_sha:$source_sha,release_sha256:$release_sha256}' > release-source.json
       - name: Deploy demo over verified SSH
         run: bash deploy/demo/send-release.sh
         env:
@@ -132,5 +137,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: demo-dev-verified-release
-          path: release.env
+          path: |
+            release.env
+            release-source.json
           retention-days: 30

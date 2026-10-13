@@ -74,3 +74,7 @@ bash deploy/demo/verify-image.sh tishe-demo:check "$(git rev-parse HEAD)"
 ```
 
 Полезные первоисточники: [артефакты Actions между запусками](https://github.com/actions/download-artifact), [ожидание готовности контейнеров Compose](https://docs.docker.com/reference/cli/docker/compose/up/).
+
+## Источник публичного релиза
+
+Публичное демо выпускается только из `main`: сначала merge, затем новая успешная сборка и проверка demo dev, затем продвижение того же digest. Артефакт содержит `release-source.json`, который связывает исходный ref, SHA и хеш манифеста. PR-сборки и старые артефакты без происхождения отклоняются, даже если workflow запущен из main.
